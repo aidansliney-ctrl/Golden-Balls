@@ -93,10 +93,10 @@
     font-size: clamp(12px, 3vw, 17px);
     font-weight: 700;
     color: #fff;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(3px);
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(1px);
     border: 2px solid rgba(255,255,255,0.35);
-    border-radius: 10px;
+    border-radius: 2px;
     cursor: pointer;
     transition: all 0.12s;
     text-shadow: 0 2px 4px rgba(0,0,0,0.9);
@@ -153,100 +153,31 @@
     bottom: -2%;
     left: 50%;
     transform: translateX(-50%);
-    height: 68%;
+    width: 75%;
     z-index: 11;
     image-rendering: auto;
+    pointer-events: none;
   }
 
-  /* Two stacked layers for crossfade tweening */
+  /* Two stacked layers for crossfade (idle + dive) */
   .gk-layer {
     position: absolute;
     bottom: 0;
     left: 50%;
     transform: translateX(-50%);
-    height: 100%;
-    transition: opacity 0.18s ease;
+    width: 100%;
+    transition: opacity 0s;
     filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.7));
   }
 
   .gk-layer img {
-    height: 100%;
-    width: auto;
+    width: 100%;
+    height: auto;
     display: block;
-  }
-
-  /* Dive images: scale relative to body size so keeper appears consistent */
-  .gk-layer.frame-dive1 {
-    height: 85%;
-    bottom: 5%;
-  }
-  .gk-layer.frame-dive2 {
-    height: 40%;
-    bottom: 8%;
-  }
-  /* When flipped for left dives */
-  .goalkeeper.flip .gk-layer.frame-dive1 {
-    transform: translateX(-50%) scaleX(-1);
-  }
-  .goalkeeper.flip .gk-layer.frame-dive2 {
-    transform: translateX(-50%) scaleX(-1);
   }
 
   .gk-layer.hidden { opacity: 0; }
   .gk-layer.visible { opacity: 1; }
-
-  /* Idle bob on both layers */
-  .goalkeeper.idle .gk-layer img {
-    animation: gk-idle-bob 1.5s ease-in-out infinite;
-  }
-
-  @keyframes gk-idle-bob {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-1.2px) rotate(0deg); }
-  }
-
-  /* Flip for left-side dives */
-  .goalkeeper.flip .gk-layer {
-    transform: translateX(-50%) scaleX(-1);
-  }
-
-  /* Dive fly-across animations on the container */
-  .goalkeeper.dive-left {
-    animation: gk-fly-left 0.55s cubic-bezier(0.15, 0, 0.35, 1) forwards;
-  }
-  .goalkeeper.dive-right {
-    animation: gk-fly-right 0.55s cubic-bezier(0.15, 0, 0.35, 1) forwards;
-  }
-
-  @keyframes gk-fly-left {
-    0%   { transform: translateX(-50%) translateY(0); }
-    100% { transform: translateX(calc(-50% - 55%)) translateY(-12px); }
-  }
-  @keyframes gk-fly-right {
-    0%   { transform: translateX(-50%) translateY(0); }
-    100% { transform: translateX(calc(-50% + 55%)) translateY(-12px); }
-  }
-
-  /* Transform tweens — no scaling, no rotation on the final frame (already flat) */
-  .gk-layer.tween-stand img {
-    transform: rotate(0deg);
-    transition: transform 0.15s ease-out;
-  }
-  .gk-layer.tween-mid img {
-    transition: transform 0.15s ease-out;
-  }
-  .goalkeeper.dive-right .gk-layer.tween-mid img {
-    transform: rotate(-8deg);
-  }
-  .goalkeeper.dive-left .gk-layer.tween-mid img,
-  .goalkeeper.flip .gk-layer.tween-mid img {
-    transform: rotate(8deg);
-  }
-  /* dive_low2 is already flat on the ground — no rotation needed */
-  .gk-layer.tween-full img {
-    transform: none;
-    transition: none;
-  }
 
   /* ── BALL ── */
   .ball {
@@ -271,7 +202,7 @@
   .ball.visible { opacity: 1; }
 
   /* Dynamic ball animation — targets set via CSS custom properties from JS */
-  .ball.shooting, .ball.missing {
+  .ball.shooting, .ball.missing, .ball.saved {
     transform: none;
   }
   .ball.shooting {
@@ -280,16 +211,26 @@
   .ball.missing {
     animation: ball-miss 0.5s cubic-bezier(0.1, 0, 0.2, 1) forwards;
   }
+  .ball.saved {
+    animation: ball-save 0.6s cubic-bezier(0.1, 0, 0.2, 1) forwards;
+  }
 
   @keyframes ball-fly {
     0% { left: var(--bx0); top: var(--by0); width: 40px; height: 40px; transform: none; }
-    100% { left: var(--bx1); top: var(--by1); width: var(--bs1, 18px); height: var(--bs1, 18px); transform: none; }
+    100% { left: var(--bx1); top: var(--by1); width: var(--bs1, 28px); height: var(--bs1, 28px); transform: none; }
   }
 
   @keyframes ball-miss {
     0% { left: var(--bx0); top: var(--by0); width: 40px; height: 40px; opacity: 1; transform: none; }
-    60% { left: var(--bx1); top: var(--by1); width: 16px; height: 16px; opacity: 1; transform: none; }
-    100% { left: var(--bx2); top: var(--by2); width: 8px; height: 8px; opacity: 0; transform: none; }
+    60% { left: var(--bx1); top: var(--by1); width: 26px; height: 26px; opacity: 1; transform: none; }
+    100% { left: var(--bx2); top: var(--by2); width: 18px; height: 18px; opacity: 0; transform: none; }
+  }
+
+  /* Save deflection: ball flies toward corner, then deflects hard sideways + down */
+  @keyframes ball-save {
+    0%   { left: var(--bx0); top: var(--by0); width: 40px; height: 40px; opacity: 1; transform: none; }
+    45%  { left: var(--bx1); top: var(--by1); width: 28px; height: 28px; opacity: 1; transform: none; }
+    100% { left: var(--bx2); top: var(--by2); width: 22px; height: 22px; opacity: 0.6; transform: none; }
   }
 
   /* Ball spin */
@@ -437,14 +378,14 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.2);
+    border: 2px solid #fff;
     background: rgba(0,0,0,0.6);
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: 'Russo One', sans-serif;
     font-size: 8px;
-    color: rgba(255,255,255,0.4);
+    color: #fff;
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
   }
@@ -460,19 +401,21 @@
     width: 100%;
     height: 100%;
     object-fit: contain;
-    opacity: 0.4;
-    filter: grayscale(80%);
+    opacity: 0.7;
+    filter: none;
     transition: all 0.4s ease;
   }
 
   .path-label {
     font-family: 'Oswald', sans-serif;
     font-size: 7px;
-    color: rgba(255,255,255,0.35);
+    color: #fff;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-top: 2px;
     white-space: nowrap;
+    text-align: center;
+    line-height: 1.2;
     transition: all 0.3s ease;
   }
 
@@ -535,8 +478,8 @@
   }
 
   .path-step.current .path-node.trophy-node img {
-    opacity: 0.7;
-    filter: grayscale(30%);
+    opacity: 1;
+    filter: none;
     animation: trophy-glow 1.5s ease-in-out infinite;
   }
 
@@ -546,8 +489,8 @@
   }
 
   @keyframes trophy-glow {
-    0%, 100% { filter: grayscale(30%) drop-shadow(0 0 4px rgba(255,215,0,0.3)); }
-    50% { filter: grayscale(10%) drop-shadow(0 0 10px rgba(255,215,0,0.7)); }
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(255,215,0,0.3)); }
+    50% { filter: drop-shadow(0 0 10px rgba(255,215,0,0.7)); }
   }
 
   /* ── PENALTY TRACKER ── */
@@ -938,9 +881,35 @@
   <img src="https://raw.githubusercontent.com/erodrig1010/pk-shootout/master/images/ball.png" alt="">
   <img src="https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/618x618/1F3C6.png" alt="">
   <img src="https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/26bd.png" alt="">
-  <img src="stand.png" alt="">
-  <img src="dive_low1.png" alt="">
-  <img src="dive_low2.png" alt="">
+  <img src="keeper2/idle1.png" alt="">
+  <img src="keeper2/idle2.png" alt="">
+  <img src="keeper2/idle3.png" alt="">
+  <img src="keeper2/divel0.png" alt="">
+  <img src="keeper2/divel1.png" alt="">
+  <img src="keeper2/divel2.png" alt="">
+  <img src="keeper2/divel3.png" alt="">
+  <img src="keeper2/divel4.png" alt="">
+  <img src="keeper2/divel5.png" alt="">
+  <img src="keeper2/diver0.png" alt="">
+  <img src="keeper2/diver1.png" alt="">
+  <img src="keeper2/diver2.png" alt="">
+  <img src="keeper2/diver3.png" alt="">
+  <img src="keeper2/diver4.png" alt="">
+  <img src="keeper2/diver5.png" alt="">
+  <img src="keeper2/divelh1.png" alt="">
+  <img src="keeper2/divelh2.png" alt="">
+  <img src="keeper2/divelh3.png" alt="">
+  <img src="keeper2/divelh4.png" alt="">
+  <img src="keeper2/divelh5.png" alt="">
+  <img src="keeper2/divelh6.png" alt="">
+  <img src="keeper2/divelh7.png" alt="">
+  <img src="keeper2/diverh1.png" alt="">
+  <img src="keeper2/diverg2.png" alt="">
+  <img src="keeper2/diverh3.png" alt="">
+  <img src="keeper2/diverh4.png" alt="">
+  <img src="keeper2/diverh5.png" alt="">
+  <img src="keeper2/diverh6.png" alt="">
+  <img src="keeper2/diverh7.png" alt="">
   <img src="world-cup.png" alt="">
   <img src="Splash3.png" alt="">
   <img src="Select_team.png" alt="">
@@ -961,13 +930,13 @@
       </div>
       <div class="net-ripple" id="netRipple"></div>
 
-      <!-- Goalkeeper (two stacked layers for crossfade tweening) -->
+      <!-- Goalkeeper -->
       <div class="goalkeeper idle" id="goalkeeper">
         <div class="gk-layer visible" id="gkLayerA">
-          <img id="gkImgA" src="stand.png" alt="Goalkeeper">
+          <img id="gkImgA" src="keeper2/idle1.png" alt="Goalkeeper">
         </div>
         <div class="gk-layer hidden" id="gkLayerB">
-          <img id="gkImgB" src="stand.png" alt="Goalkeeper">
+          <img id="gkImgB" src="keeper2/idle1.png" alt="Goalkeeper">
         </div>
       </div>
 
@@ -1047,9 +1016,11 @@
 <script>
 // ── IMAGE URLS ──
 const IMG = {
-  gkStand: 'stand.png',
-  gkDive1: 'dive_low1.png',
-  gkDive2: 'dive_low2.png',
+  idle: ['keeper2/idle1.png', 'keeper2/idle2.png', 'keeper2/idle3.png'],
+  diveLeftLow: ['keeper2/divel0.png','keeper2/divel1.png','keeper2/divel2.png','keeper2/divel3.png','keeper2/divel4.png','keeper2/divel5.png'],
+  diveRightLow: ['keeper2/diver0.png','keeper2/diver1.png','keeper2/diver2.png','keeper2/diver3.png','keeper2/diver4.png','keeper2/diver5.png'],
+  diveLeftHigh: ['keeper2/divelh1.png','keeper2/divelh2.png','keeper2/divelh3.png','keeper2/divelh4.png','keeper2/divelh5.png','keeper2/divelh6.png','keeper2/divelh7.png'],
+  diveRightHigh: ['keeper2/diverh1.png','keeper2/diverg2.png','keeper2/diverh3.png','keeper2/diverh4.png','keeper2/diverh5.png','keeper2/diverh6.png','keeper2/diverh7.png'],
   ball: 'https://raw.githubusercontent.com/erodrig1010/pk-shootout/master/images/ball.png',
   trophy: 'https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/618x618/1F3C6.png',
   sadFace: 'https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/618x618/1F614.png',
@@ -1059,59 +1030,84 @@ const IMG = {
   football: 'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/26bd.png',
 };
 
-// ── GK CROSSFADE TWEEN SYSTEM ──
-// Two layers (A & B) alternate: the "front" layer shows the current sprite,
-// to transition we load the next sprite on the "back" layer, then crossfade.
-let gkFrontLayer = 'A'; // tracks which layer is currently visible
+// ── GK CROSSFADE SYSTEM ──
+let gkFrontLayer = 'A';
 
-function gkCrossfade(newSrc, tweenClass, frameClass) {
+function gkCrossfade(newSrc) {
   const frontId = gkFrontLayer;
   const backId = frontId === 'A' ? 'B' : 'A';
   const frontLayer = document.getElementById('gkLayer' + frontId);
   const backLayer = document.getElementById('gkLayer' + backId);
   const backImg = document.getElementById('gkImg' + backId);
 
-  // Load new sprite on back layer
   backImg.src = newSrc;
-
-  // Apply tween transform class + frame size class
   frontLayer.className = 'gk-layer hidden';
-  backLayer.className = `gk-layer visible ${tweenClass || ''} ${frameClass || ''}`;
-
-  // Swap which is "front"
+  backLayer.className = 'gk-layer visible';
   gkFrontLayer = backId;
 }
 
-// Animated dive: stand → dive_low1 (crossfade) → dive_low2 (crossfade)
-// with smooth rotation/scale transforms tweened via CSS transitions
-function animateGkDive(direction) {
-  const isLeft = direction === 'left';
+// ── IDLE ANIMATION (keeper2/idle1-3.png) ──
+let idleInterval = null;
+const IDLE_SEQ = [0, 1, 2, 1];
+let idleIdx = 0;
 
-  // Start: apply flip + fly animation to container
-  gk.className = `goalkeeper ${isLeft ? 'flip' : ''} dive-${direction}`;
-
-  // Frame 1 (0ms): crossfade from stand → dive_low1 with mid-tween rotation
-  gkCrossfade(IMG.gkDive1, 'tween-mid', 'frame-dive1');
-
-  // Frame 2 (~200ms): crossfade from dive_low1 → dive_low2 with full-stretch
-  setTimeout(() => {
-    gkCrossfade(IMG.gkDive2, 'tween-full', 'frame-dive2');
-  }, 200);
+function startIdleAnim() {
+  stopIdleAnim();
+  idleIdx = 0;
+  gkCrossfade(IMG.idle[0]);
+  idleInterval = setInterval(() => {
+    idleIdx = (idleIdx + 1) % IDLE_SEQ.length;
+    gkCrossfade(IMG.idle[IDLE_SEQ[idleIdx]]);
+  }, 2800);
 }
 
-// Reset GK to standing (instant, no crossfade)
+function stopIdleAnim() {
+  if (idleInterval) { clearInterval(idleInterval); idleInterval = null; }
+}
+
+// ── DIVE ANIMATION ──
+let diveTimeouts = [];
+
+function animateGkDive(direction, isHigh) {
+  stopIdleAnim();
+  diveTimeouts.forEach(t => clearTimeout(t));
+  diveTimeouts = [];
+
+  // Pick the right frame sequence
+  // High dive sprites: direct mapping (left=left, right=right)
+  // Low dive sprites: swapped (left=diver, right=divel)
+  let frames;
+  if (isHigh) {
+    frames = direction === 'left' ? IMG.diveLeftHigh : IMG.diveRightHigh;
+  } else {
+    frames = direction === 'left' ? IMG.diveRightLow : IMG.diveLeftLow;
+  }
+
+  // No CSS fly/flip needed — movement is baked into the sprites
+  gk.className = 'goalkeeper';
+
+  // Play frames with even timing across ~600ms
+  const interval = Math.floor(600 / frames.length);
+  frames.forEach((src, i) => {
+    if (i === 0) {
+      gkCrossfade(src);
+    } else {
+      diveTimeouts.push(setTimeout(() => gkCrossfade(src), i * interval));
+    }
+  });
+}
+
+// Reset GK to standing idle
 function resetGk() {
+  diveTimeouts.forEach(t => clearTimeout(t));
+  diveTimeouts = [];
   gk.className = 'goalkeeper idle';
   const layerA = document.getElementById('gkLayerA');
   const layerB = document.getElementById('gkLayerB');
-  const imgA = document.getElementById('gkImgA');
-  const imgB = document.getElementById('gkImgB');
-
-  imgA.src = IMG.gkStand;
-  imgB.src = IMG.gkStand;
-  layerA.className = 'gk-layer visible tween-stand';
+  layerA.className = 'gk-layer hidden';
   layerB.className = 'gk-layer hidden';
   gkFrontLayer = 'A';
+  startIdleAnim();
 }
 
 // ── QUESTIONS (4 answers each, difficulty: 1=easy, 2=medium, 3=hard) ──
@@ -1265,7 +1261,24 @@ function getBallTarget(btnIdx) {
 }
 
 // Set ball CSS vars for dynamic animation
-function shootBallTo(targetX, targetY, isSave) {
+function shootBallTo(targetX, targetY) {
+  const gameRect = gameEl.getBoundingClientRect();
+  const ballRect = ball.getBoundingClientRect();
+  const startX = ballRect.left + ballRect.width / 2 - gameRect.left;
+  const startY = ballRect.top + ballRect.height / 2 - gameRect.top;
+
+  ball.style.setProperty('--bx0', startX + 'px');
+  ball.style.setProperty('--by0', startY + 'px');
+  ball.style.setProperty('--bx1', targetX + 'px');
+  ball.style.setProperty('--by1', targetY + 'px');
+  ball.style.setProperty('--bs1', '28px');
+
+  const isLeft = targetX < gameRect.width / 2;
+  ball.className = `ball visible shooting ${isLeft ? 'spin-left' : 'spin-right'}`;
+}
+
+// Save: ball flies to corner then deflects hard sideways + down
+function shootBallSave(targetX, targetY) {
   const gameRect = gameEl.getBoundingClientRect();
   const ballRect = ball.getBoundingClientRect();
   const startX = ballRect.left + ballRect.width / 2 - gameRect.left;
@@ -1274,20 +1287,19 @@ function shootBallTo(targetX, targetY, isSave) {
   ball.style.setProperty('--bx0', startX + 'px');
   ball.style.setProperty('--by0', startY + 'px');
 
-  if (isSave) {
-    // For saves: ball stops at outer edge of keeper (shifted outward from center)
-    const dir = targetX < gameRect.width / 2 ? -1 : 1;
-    ball.style.setProperty('--bx1', (targetX + dir * 20) + 'px');
-    ball.style.setProperty('--by1', targetY + 'px');
-    ball.style.setProperty('--bs1', '16px');
-  } else {
-    ball.style.setProperty('--bx1', targetX + 'px');
-    ball.style.setProperty('--by1', targetY + 'px');
-    ball.style.setProperty('--bs1', '18px');
-  }
+  // Mid-point: where keeper contacts ball
+  ball.style.setProperty('--bx1', targetX + 'px');
+  ball.style.setProperty('--by1', targetY + 'px');
 
-  const isLeft = targetX < gameRect.width / 2;
-  ball.className = `ball visible shooting ${isLeft ? 'spin-left' : 'spin-right'}`;
+  // Deflection: hard turn left+down or right+down depending on which side
+  const isLeftSide = targetX < gameRect.width / 2;
+  const deflectX = isLeftSide ? -40 : gameRect.width + 40;
+  const deflectY = gameRect.height * 0.75;
+
+  ball.style.setProperty('--bx2', deflectX + 'px');
+  ball.style.setProperty('--by2', deflectY + 'px');
+
+  ball.className = `ball visible saved ${isLeftSide ? 'spin-left' : 'spin-right'}`;
 }
 
 function shootBallMiss() {
@@ -1345,13 +1357,13 @@ const PLAYER_FLAGS = {
 };
 
 const TOURNAMENT = [
-  { id: 'GRP1', label: 'GRP', short: 'G1', opponent: 'Japan' },
-  { id: 'GRP2', label: 'GRP', short: 'G2', opponent: 'Mexico' },
-  { id: 'GRP3', label: 'GRP', short: 'G3', opponent: 'South Korea' },
-  { id: 'R32',  label: 'R32', short: '32', opponent: 'USA' },
-  { id: 'R16',  label: 'R16', short: '16', opponent: 'Germany' },
-  { id: 'QF',   label: 'QTR', short: 'QF', opponent: 'France' },
-  { id: 'SF',   label: 'SEMI', short: 'SF', opponent: 'Argentina' },
+  { id: 'GRP1', label: 'Group\nGame', short: 'G1', opponent: 'Japan' },
+  { id: 'GRP2', label: 'Group\nGame', short: 'G2', opponent: 'Mexico' },
+  { id: 'GRP3', label: 'Group\nGame', short: 'G3', opponent: 'South Korea' },
+  { id: 'R32',  label: 'Round\n32', short: '32', opponent: 'USA' },
+  { id: 'R16',  label: 'Round\n16', short: '16', opponent: 'Germany' },
+  { id: 'QF',   label: 'Quarter\nFinal', short: 'QF', opponent: 'France' },
+  { id: 'SF',   label: 'Semi\nFinal', short: 'SF', opponent: 'Argentina' },
   { id: 'FINAL',label: 'FINAL', short: '🏆', isTrophy: true, opponent: null } // set dynamically
 ];
 
@@ -1415,11 +1427,12 @@ const crowdAudio = new Audio('crowd.mp3');
 crowdAudio.loop = true;
 crowdAudio.volume = 0;
 
-const goalAudio = new Audio('goal.mp3');
-goalAudio.volume = 0.7;
+// SFX use cloneNode so multiple can play simultaneously
+const goalAudioTemplate = new Audio('goal.mp3');
+goalAudioTemplate.volume = 0.7;
 
-const missAudio = new Audio('miss.mp3');
-missAudio.volume = 0.7;
+const missAudioTemplate = new Audio('miss.mp3');
+missAudioTemplate.volume = 0.7;
 
 let currentBgAudio = null; // track which background audio is playing
 
@@ -1471,13 +1484,15 @@ function startSong() {
 }
 
 function playGoalSound() {
-  goalAudio.currentTime = 0;
-  goalAudio.play().catch(() => {});
+  const sfx = goalAudioTemplate.cloneNode();
+  sfx.volume = goalAudioTemplate.volume;
+  sfx.play().catch(() => {});
 }
 
 function playMissSfx() {
-  missAudio.currentTime = 0;
-  missAudio.play().catch(() => {});
+  const sfx = missAudioTemplate.cloneNode();
+  sfx.volume = missAudioTemplate.volume;
+  sfx.play().catch(() => {});
 }
 
 function playKick() {
@@ -1565,7 +1580,7 @@ function updateTournamentPath() {
 
     const label = document.createElement('div');
     label.className = 'path-label';
-    label.textContent = stage.label;
+    label.innerHTML = stage.label.replace('\n', '<br>');
 
     step.appendChild(node);
     step.appendChild(label);
@@ -1615,7 +1630,7 @@ function timeoutShot() {
   const rndDir = Math.random() > 0.5 ? 'left' : 'right';
   setTimeout(() => {
     shootBallMiss();
-    animateGkDive(rndDir);
+    animateGkDive(rndDir, Math.random() > 0.5);
   }, 250);
   setTimeout(() => triggerMiss(), 750);
 }
@@ -1712,37 +1727,29 @@ function selectAnswer(idx) {
 
   setTimeout(playKick, 180);
 
+  const isHigh = idx < 2; // top row = high dive, bottom row = low dive
+
   if (isCorrect) {
-    // Ball goes to the selected answer square, GK dives the WRONG way
+    // GOAL: Ball goes to the selected answer square, GK dives the WRONG way
     const wrongDir = CORNER_DIR[idx] === 'left' ? 'right' : 'left';
+    const wrongHigh = Math.random() > 0.5;
     const target = getBallTarget(idx);
 
     setTimeout(() => {
-      shootBallTo(target.x, target.y, false);
-      animateGkDive(wrongDir);
+      shootBallTo(target.x, target.y);
+      animateGkDive(wrongDir, wrongHigh);
     }, 250);
 
     setTimeout(() => triggerGoal(idx), 750);
   } else {
-    const isSave = Math.random() > 0.35;
-    if (isSave) {
-      // GK saves — ball goes toward answer but keeper intercepts at the outer edge
-      const target = getBallTarget(idx);
+    // SAVE: GK dives to the correct square and saves it, ball deflects hard sideways + down
+    const target = getBallTarget(idx);
 
-      setTimeout(() => {
-        shootBallTo(target.x, target.y, true);
-        animateGkDive(CORNER_DIR[idx]);
-      }, 250);
-      setTimeout(() => triggerSave(), 750);
-    } else {
-      // Miss wide — ball flies off target entirely
-      const rndDir = Math.random() > 0.5 ? 'left' : 'right';
-      setTimeout(() => {
-        shootBallMiss();
-        animateGkDive(rndDir);
-      }, 250);
-      setTimeout(() => triggerMiss(), 750);
-    }
+    setTimeout(() => {
+      shootBallSave(target.x, target.y);
+      animateGkDive(CORNER_DIR[idx], isHigh);
+    }, 250);
+    setTimeout(() => triggerSave(), 750);
   }
 }
 
@@ -1768,9 +1775,25 @@ function triggerGoal(corner) {
   const el = $('playerScore'); el.textContent = state.playerScore;
   el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 400);
 
+  applyOppScore();
+
   updatePointsDisplay();
   updateTracker();
   setTimeout(nextRound, 2200);
+}
+
+// Check if opponent scores this round (pre-determined schedule)
+function oppScoresThisRound() {
+  if (state.suddenDeath) return true; // In sudden death, opponent always scores
+  return state.oppScoreRounds && state.oppScoreRounds.has(state.round);
+}
+
+function applyOppScore() {
+  if (oppScoresThisRound()) {
+    state.oppScore++;
+    const el = $('oppScore'); el.textContent = state.oppScore;
+    el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 400);
+  }
 }
 
 function triggerSave() {
@@ -1784,11 +1807,7 @@ function triggerSave() {
   correctReveal.textContent = `Answer: ${q.a[q.correct]}`;
   resultOverlay.className = 'result-overlay active';
 
-  if (Math.random() > 0.5) {
-    state.oppScore++;
-    const el = $('oppScore'); el.textContent = state.oppScore;
-    el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 400);
-  }
+  applyOppScore();
 
   state.results.push(false);
   updateTracker();
@@ -1806,11 +1825,7 @@ function triggerMiss() {
   correctReveal.textContent = `Answer: ${q.a[q.correct]}`;
   resultOverlay.className = 'result-overlay active';
 
-  if (Math.random() > 0.5) {
-    state.oppScore++;
-    const el = $('oppScore'); el.textContent = state.oppScore;
-    el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 400);
-  }
+  applyOppScore();
 
   state.results.push(false);
   updateTracker();
@@ -1842,12 +1857,39 @@ function nextRound() {
 }
 
 function endGame() {
+  const draw = state.playerScore === state.oppScore;
+
+  // Sudden death on draw: one more question — score = win, miss = lose
+  if (draw && !state.suddenDeath) {
+    state.suddenDeath = true;
+    state.maxRounds = state.round + 1; // one more round
+    // Pick one extra question
+    const diff = state.tournamentStage < 3 ? 1 : state.tournamentStage < 6 ? 2 : 3;
+    const pool = QUESTIONS.filter((q, i) => q.d === diff && !usedQuestionIndices.has(i));
+    if (pool.length > 0) {
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      state.questions.push(pick);
+    } else {
+      const fallback = QUESTIONS.filter((q, i) => !usedQuestionIndices.has(i));
+      state.questions.push(fallback[Math.floor(Math.random() * fallback.length)] || QUESTIONS[0]);
+    }
+
+    resultText.className = 'result-text goal';
+    resultText.textContent = 'SUDDEN DEATH!';
+    correctReveal.textContent = 'Next goal wins...';
+    resultOverlay.className = 'result-overlay active';
+    setTimeout(() => {
+      showQuestion();
+      updateTracker();
+    }, 2000);
+    return;
+  }
+
   state.phase = 'ended';
   playWhistle();
 
   const won = state.playerScore > state.oppScore;
-  const draw = state.playerScore === state.oppScore;
-  state.tournamentResults.push(won || draw); // draw counts as progression in groups
+  state.tournamentResults.push(won);
 
   stopShotTimer();
   $('finalScore').textContent = `${state.playerScore} - ${state.oppScore}`;
@@ -1913,18 +1955,30 @@ function startStage() {
   state.questions = [];
   state.locked = false;
   state.phase = 'playing';
+  state.suddenDeath = false;
+
+  // Pre-determine which rounds the opponent scores on
+  // Group games: opponent scores 3 out of 5, knockout: 4 out of 5
+  const isGroup = state.tournamentStage < 3;
+  const isSemiOrFinal = state.tournamentStage >= 6; // SF=6, Final=7
+  const oppGoals = isGroup ? 3 : isSemiOrFinal ? 5 : 4;
+  const rounds = [0, 1, 2, 3, 4];
+  rounds.sort(() => Math.random() - 0.5);
+  state.oppScoreRounds = new Set(rounds.slice(0, oppGoals));
+
   $('playerScore').textContent = '0';
   $('oppScore').textContent = '0';
   $('endScreen').classList.add('hidden');
   confettiContainer.innerHTML = '';
   switchToCrowd();
   updateScoreboard();
+  resetGk();
   pickQuestions(); showQuestion(); updateTracker(); updateTournamentPath();
 }
 
 function resetTournament() {
   const team = state.team || 'England';
-  state = { round: 0, maxRounds: 5, playerScore: 0, oppScore: 0, results: [], questions: [], locked: false, phase: 'playing', tournamentStage: 0, tournamentResults: [], totalPoints: 0, team };
+  state = { round: 0, maxRounds: 5, playerScore: 0, oppScore: 0, results: [], questions: [], locked: false, phase: 'playing', tournamentStage: 0, tournamentResults: [], totalPoints: 0, team, suddenDeath: false, oppScoreRounds: new Set() };
   usedQuestionIndices = new Set();
   $('playerScore').textContent = '0';
   $('oppScore').textContent = '0';
@@ -1966,7 +2020,18 @@ $('teamSelectScreen').addEventListener('click', (e) => {
   switchToCrowd();
   playWhistle();
   state.phase = 'playing';
+  state.suddenDeath = false;
+
+  // Pre-determine opponent goals (group = 3, knockout = 4)
+  const isGroup = state.tournamentStage < 3;
+  const isSemiOrFinal = state.tournamentStage >= 6; // SF=6, Final=7
+  const oppGoals = isGroup ? 3 : isSemiOrFinal ? 5 : 4;
+  const rounds = [0, 1, 2, 3, 4];
+  rounds.sort(() => Math.random() - 0.5);
+  state.oppScoreRounds = new Set(rounds.slice(0, oppGoals));
+
   updateScoreboard();
+  resetGk();
   pickQuestions(); showQuestion(); updateTracker(); updateTournamentPath();
 });
 
