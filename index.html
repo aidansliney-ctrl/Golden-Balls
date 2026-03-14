@@ -1,0 +1,1977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>World Cup Penalty Shootout</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Russo+One&family=Oswald:wght@400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    overflow: hidden;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    background: #000;
+    font-family: 'Oswald', sans-serif;
+  }
+
+  #game {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: #000;
+  }
+
+  /* ── BACKGROUND ── */
+  .bg {
+    position: absolute;
+    top: -8%;
+    left: 0;
+    right: 0;
+    bottom: 5%;
+    background: url('background3.png') center bottom / cover no-repeat;
+  }
+
+  .bg-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 60%, rgba(0,10,0,0.3) 100%);
+  }
+
+  /* ── PITCH GROUP (anchors goal to grass line) ── */
+  .pitch-group {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 32%;
+    width: 100%;
+    max-width: 540px;
+  }
+
+  /* ── GOAL NET IMAGE ── */
+  .goal-area {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 2.2;
+  }
+
+  .goal-img {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .goal-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+  }
+
+  /* ── ANSWER ZONES (4 corners) ── */
+  .answers-container {
+    position: absolute;
+    inset: 6% 4% 6% 4%;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 4px;
+    padding: 0;
+  }
+
+  .answer-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4px 6px;
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(12px, 3vw, 17px);
+    font-weight: 700;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
+    border: 2px solid rgba(255,255,255,0.35);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.12s;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+    line-height: 1.1;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+    z-index: 12;
+  }
+
+  .answer-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 40%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+    border-radius: 10px 10px 0 0;
+    pointer-events: none;
+  }
+
+  .answer-btn:active {
+    transform: scale(0.93);
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.6);
+  }
+
+  .answer-btn.correct {
+    background: rgba(46, 204, 64, 0.75) !important;
+    border-color: #2ecc40 !important;
+    animation: answer-glow-green 0.5s ease;
+  }
+
+  .answer-btn.wrong {
+    background: rgba(255, 65, 54, 0.75) !important;
+    border-color: #ff4136 !important;
+    animation: answer-shake 0.4s ease;
+  }
+
+  @keyframes answer-glow-green {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(46,204,64,0); }
+    50% { box-shadow: 0 0 30px 12px rgba(46,204,64,0.5); }
+  }
+
+  @keyframes answer-shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+
+  /* ── GOALKEEPER ── */
+  .goalkeeper {
+    position: absolute;
+    bottom: -2%;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 68%;
+    z-index: 11;
+    image-rendering: auto;
+  }
+
+  /* Two stacked layers for crossfade tweening */
+  .gk-layer {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 100%;
+    transition: opacity 0.18s ease;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.7));
+  }
+
+  .gk-layer img {
+    height: 100%;
+    width: auto;
+    display: block;
+  }
+
+  /* Dive images: scale relative to body size so keeper appears consistent */
+  .gk-layer.frame-dive1 {
+    height: 85%;
+    bottom: 5%;
+  }
+  .gk-layer.frame-dive2 {
+    height: 40%;
+    bottom: 8%;
+  }
+  /* When flipped for left dives */
+  .goalkeeper.flip .gk-layer.frame-dive1 {
+    transform: translateX(-50%) scaleX(-1);
+  }
+  .goalkeeper.flip .gk-layer.frame-dive2 {
+    transform: translateX(-50%) scaleX(-1);
+  }
+
+  .gk-layer.hidden { opacity: 0; }
+  .gk-layer.visible { opacity: 1; }
+
+  /* Idle bob on both layers */
+  .goalkeeper.idle .gk-layer img {
+    animation: gk-idle-bob 1.5s ease-in-out infinite;
+  }
+
+  @keyframes gk-idle-bob {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-1.2px) rotate(0deg); }
+  }
+
+  /* Flip for left-side dives */
+  .goalkeeper.flip .gk-layer {
+    transform: translateX(-50%) scaleX(-1);
+  }
+
+  /* Dive fly-across animations on the container */
+  .goalkeeper.dive-left {
+    animation: gk-fly-left 0.55s cubic-bezier(0.15, 0, 0.35, 1) forwards;
+  }
+  .goalkeeper.dive-right {
+    animation: gk-fly-right 0.55s cubic-bezier(0.15, 0, 0.35, 1) forwards;
+  }
+
+  @keyframes gk-fly-left {
+    0%   { transform: translateX(-50%) translateY(0); }
+    100% { transform: translateX(calc(-50% - 55%)) translateY(-12px); }
+  }
+  @keyframes gk-fly-right {
+    0%   { transform: translateX(-50%) translateY(0); }
+    100% { transform: translateX(calc(-50% + 55%)) translateY(-12px); }
+  }
+
+  /* Transform tweens — no scaling, no rotation on the final frame (already flat) */
+  .gk-layer.tween-stand img {
+    transform: rotate(0deg);
+    transition: transform 0.15s ease-out;
+  }
+  .gk-layer.tween-mid img {
+    transition: transform 0.15s ease-out;
+  }
+  .goalkeeper.dive-right .gk-layer.tween-mid img {
+    transform: rotate(-8deg);
+  }
+  .goalkeeper.dive-left .gk-layer.tween-mid img,
+  .goalkeeper.flip .gk-layer.tween-mid img {
+    transform: rotate(8deg);
+  }
+  /* dive_low2 is already flat on the ground — no rotation needed */
+  .gk-layer.tween-full img {
+    transform: none;
+    transition: none;
+  }
+
+  /* ── BALL ── */
+  .ball {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    z-index: 20;
+    left: 50%;
+    bottom: calc(32% - 90px);
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: none;
+  }
+
+  .ball img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5));
+  }
+
+  .ball.visible { opacity: 1; }
+
+  /* Dynamic ball animation — targets set via CSS custom properties from JS */
+  .ball.shooting, .ball.missing {
+    transform: none;
+  }
+  .ball.shooting {
+    animation: ball-fly 0.4s cubic-bezier(0.1, 0, 0.2, 1) forwards;
+  }
+  .ball.missing {
+    animation: ball-miss 0.5s cubic-bezier(0.1, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes ball-fly {
+    0% { left: var(--bx0); top: var(--by0); width: 40px; height: 40px; transform: none; }
+    100% { left: var(--bx1); top: var(--by1); width: var(--bs1, 18px); height: var(--bs1, 18px); transform: none; }
+  }
+
+  @keyframes ball-miss {
+    0% { left: var(--bx0); top: var(--by0); width: 40px; height: 40px; opacity: 1; transform: none; }
+    60% { left: var(--bx1); top: var(--by1); width: 16px; height: 16px; opacity: 1; transform: none; }
+    100% { left: var(--bx2); top: var(--by2); width: 8px; height: 8px; opacity: 0; transform: none; }
+  }
+
+  /* Ball spin */
+  .ball.spin-left img {
+    animation: ball-spin-l 0.4s linear;
+  }
+  .ball.spin-right img {
+    animation: ball-spin-r 0.4s linear;
+  }
+
+  @keyframes ball-spin-l { from { transform: rotate(0); } to { transform: rotate(-540deg); } }
+  @keyframes ball-spin-r { from { transform: rotate(0); } to { transform: rotate(540deg); } }
+
+  /* ── SCORE HUD ── */
+  .hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 70%, transparent 100%);
+  }
+
+  .scoreboard {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(180deg, rgba(20,20,50,0.95), rgba(10,10,35,0.95));
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 5px 18px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+  }
+
+  .team-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .team-flag {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+  }
+
+  .team-label {
+    font-family: 'Russo One', sans-serif;
+    font-size: 11px;
+    color: rgba(255,255,255,0.85);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .score-display {
+    font-family: 'Russo One', sans-serif;
+    font-size: 26px;
+    color: #ffd700;
+    min-width: 26px;
+    text-align: center;
+  }
+
+  .score-display.pop {
+    animation: score-pop 0.3s ease;
+  }
+
+  @keyframes score-pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.5); color: #fff; }
+    100% { transform: scale(1); }
+  }
+
+  .score-divider {
+    color: rgba(255,255,255,0.3);
+    font-size: 20px;
+    font-family: 'Russo One', sans-serif;
+  }
+
+  .round-display {
+    position: absolute;
+    right: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    font-family: 'Russo One', sans-serif;
+    font-size: 13px;
+    color: #ffd700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* ── SHOT TIMER ── */
+  .timer-bar {
+    width: 50px;
+    height: 4px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .timer-fill {
+    height: 100%;
+    width: 100%;
+    background: #ffd700;
+    border-radius: 3px;
+    transition: width 1s linear, background 0.3s;
+    transform-origin: left;
+  }
+
+  .timer-fill.warning { background: #ff851b; }
+  .timer-fill.danger { background: #ff4136; }
+
+  /* ── TOURNAMENT PATH ── */
+  .tournament-path {
+    position: absolute;
+    top: 80px;
+    left: 0; right: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.2) 80%, transparent 100%);
+  }
+
+  .path-track {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    position: relative;
+  }
+
+  .path-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+  }
+
+  .path-node {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Russo One', sans-serif;
+    font-size: 8px;
+    color: rgba(255,255,255,0.4);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+  }
+
+  .path-node.trophy-node {
+    background: transparent;
+    border: none;
+    width: 30px;
+    height: 30px;
+  }
+
+  .path-node.trophy-node img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    opacity: 0.4;
+    filter: grayscale(80%);
+    transition: all 0.4s ease;
+  }
+
+  .path-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 7px;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+  }
+
+  .path-connector {
+    width: 14px;
+    height: 2px;
+    background: rgba(255,255,255,0.12);
+    flex-shrink: 0;
+    transition: background 0.4s ease;
+    z-index: 1;
+  }
+
+  /* Completed step */
+  .path-step.completed .path-node {
+    background: linear-gradient(135deg, #1a6b2a, #2ecc40);
+    border-color: #27ae60;
+    color: #fff;
+    box-shadow: 0 0 8px rgba(46,204,64,0.4);
+  }
+
+  .path-step.completed .path-label {
+    color: rgba(46,204,64,0.8);
+  }
+
+  .path-connector.completed {
+    background: linear-gradient(90deg, #2ecc40, #27ae60);
+    box-shadow: 0 0 4px rgba(46,204,64,0.3);
+  }
+
+  /* Failed step */
+  .path-step.failed .path-node {
+    background: linear-gradient(135deg, #8b1a1a, #cc3333);
+    border-color: #cc0000;
+    color: #fff;
+    box-shadow: 0 0 8px rgba(255,65,54,0.4);
+  }
+
+  .path-step.failed .path-label {
+    color: rgba(255,65,54,0.7);
+  }
+
+  /* Current step */
+  .path-step.current .path-node {
+    border-color: #ffd700;
+    background: rgba(255,215,0,0.15);
+    color: #ffd700;
+    box-shadow: 0 0 12px rgba(255,215,0,0.5);
+    animation: path-pulse 1.5s ease-in-out infinite;
+  }
+
+  .path-step.current .path-label {
+    color: #ffd700;
+    font-weight: 700;
+  }
+
+  /* Trophy won */
+  .path-step.completed .path-node.trophy-node img {
+    opacity: 1;
+    filter: grayscale(0%) drop-shadow(0 0 8px rgba(255,215,0,0.8));
+  }
+
+  .path-step.current .path-node.trophy-node img {
+    opacity: 0.7;
+    filter: grayscale(30%);
+    animation: trophy-glow 1.5s ease-in-out infinite;
+  }
+
+  @keyframes path-pulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(255,215,0,0.3); transform: scale(1); }
+    50% { box-shadow: 0 0 16px rgba(255,215,0,0.6); transform: scale(1.1); }
+  }
+
+  @keyframes trophy-glow {
+    0%, 100% { filter: grayscale(30%) drop-shadow(0 0 4px rgba(255,215,0,0.3)); }
+    50% { filter: grayscale(10%) drop-shadow(0 0 10px rgba(255,215,0,0.7)); }
+  }
+
+  /* ── PENALTY TRACKER ── */
+  .penalty-tracker {
+    position: absolute;
+    top: 52px;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px 0 3px;
+    z-index: 55;
+  }
+
+  .pen-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3);
+    background: rgba(0,0,0,0.5);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pen-dot img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+  }
+
+  .pen-dot.scored {
+    background: #2ecc40;
+    border-color: #27ae60;
+    box-shadow: 0 0 10px rgba(46,204,64,0.6);
+    transform: scale(1.1);
+  }
+
+  .pen-dot.missed {
+    background: #ff4136;
+    border-color: #cc0000;
+    box-shadow: 0 0 10px rgba(255,65,54,0.6);
+  }
+
+  .pen-dot.current {
+    border-color: #ffd700;
+    box-shadow: 0 0 14px rgba(255,215,0,0.6);
+    animation: dot-pulse 1s ease-in-out infinite;
+  }
+
+  .pen-dot.current img {
+    width: 14px;
+    height: 14px;
+  }
+
+  @keyframes dot-pulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(255,215,0,0.3); transform: scale(1); }
+    50% { box-shadow: 0 0 18px rgba(255,215,0,0.7); transform: scale(1.15); }
+  }
+
+  /* ── QUESTION BAR ── */
+  .question-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    z-index: 50;
+    padding: 24px 16px 20px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    background: linear-gradient(0deg, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.92) 70%, rgba(0,0,0,0.6) 90%, transparent 100%);
+  }
+
+  .question-text {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(18px, 5vw, 26px);
+    color: #fff;
+    text-align: center;
+    line-height: 1.3;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+  }
+
+  .category-badge {
+    display: block;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+
+  .category-badge span {
+    display: inline-block;
+    background: rgba(255,215,0,0.15);
+    border: 1px solid rgba(255,215,0,0.4);
+    color: #ffd700;
+    font-size: 10px;
+    padding: 2px 12px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 700;
+  }
+
+  /* ── RESULT OVERLAY ── */
+  .result-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  .result-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .result-text {
+    font-family: 'Russo One', sans-serif;
+    font-size: clamp(48px, 15vw, 88px);
+    text-transform: uppercase;
+    letter-spacing: 6px;
+    -webkit-text-stroke: 2px rgba(0,0,0,0.6);
+    filter: drop-shadow(0 6px 16px rgba(0,0,0,0.6));
+  }
+
+  .result-text.goal {
+    color: #2ecc40;
+    text-shadow: 0 0 50px rgba(46,204,64,0.8), 0 0 100px rgba(46,204,64,0.3);
+    animation: result-boom 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+
+  .result-text.saved {
+    color: #ff4136;
+    text-shadow: 0 0 50px rgba(255,65,54,0.8), 0 0 100px rgba(255,65,54,0.3);
+    animation: result-boom 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+
+  .result-text.miss {
+    color: #ff851b;
+    text-shadow: 0 0 50px rgba(255,133,27,0.8), 0 0 100px rgba(255,133,27,0.3);
+    animation: result-boom 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+
+  @keyframes result-boom {
+    0% { transform: scale(0.1) rotate(-3deg); opacity: 0; }
+    50% { transform: scale(1.2) rotate(1deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  .correct-answer-reveal {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(14px, 3.5vw, 18px);
+    color: rgba(255,255,255,0.8);
+    margin-top: 14px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 20px;
+    padding: 6px 18px;
+    backdrop-filter: blur(4px);
+  }
+
+  .correct-answer-reveal:empty { display: none; }
+
+  /* ── CONFETTI ── */
+  .confetti-container {
+    position: absolute;
+    inset: 0;
+    z-index: 90;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .confetti {
+    position: absolute;
+    top: -3%;
+    animation: confetti-fall linear forwards;
+  }
+
+  @keyframes confetti-fall {
+    0% { top: -3%; opacity: 1; transform: rotate(0deg) translateX(0); }
+    25% { transform: rotate(120deg) translateX(20px); }
+    50% { transform: rotate(240deg) translateX(-15px); }
+    75% { transform: rotate(330deg) translateX(10px); }
+    100% { top: 105%; opacity: 0; transform: rotate(400deg) translateX(0); }
+  }
+
+  /* ── SCREEN FLASH ── */
+  .screen-flash {
+    position: absolute;
+    inset: 0;
+    z-index: 80;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  .screen-flash.goal-flash {
+    animation: flash-green 0.5s ease-out;
+  }
+  .screen-flash.miss-flash {
+    animation: flash-red 0.4s ease-out;
+  }
+
+  @keyframes flash-green {
+    0% { opacity: 0.5; background: radial-gradient(circle, rgba(46,204,64,0.5), transparent 70%); }
+    100% { opacity: 0; }
+  }
+  @keyframes flash-red {
+    0% { opacity: 0.4; background: radial-gradient(circle, rgba(255,65,54,0.4), transparent 70%); }
+    100% { opacity: 0; }
+  }
+
+  /* ── SCREEN SHAKE ── */
+  #game.shake {
+    animation: screen-shake 0.4s ease-out;
+  }
+
+  @keyframes screen-shake {
+    0% { transform: translate(0,0); }
+    15% { transform: translate(-5px, 3px); }
+    30% { transform: translate(5px, -3px); }
+    45% { transform: translate(-4px, -2px); }
+    60% { transform: translate(3px, 2px); }
+    75% { transform: translate(-2px, 1px); }
+    100% { transform: translate(0,0); }
+  }
+
+  /* ── NET RIPPLE ── */
+  .net-ripple {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    pointer-events: none;
+    opacity: 0;
+    border-radius: 4px;
+  }
+
+  .net-ripple.active {
+    animation: net-bulge 0.7s ease-out forwards;
+  }
+
+  @keyframes net-bulge {
+    0% { opacity: 0; }
+    20% { opacity: 1; background: radial-gradient(ellipse at var(--rx,50%) var(--ry,50%), rgba(255,255,255,0.3) 0%, transparent 50%); }
+    100% { opacity: 0; }
+  }
+
+  /* ── SPLASH / TEAM SELECT ── */
+  .splash-screen {
+    position: absolute;
+    inset: 0;
+    z-index: 300;
+    cursor: pointer;
+    transition: opacity 0.5s;
+    background: #000;
+  }
+  .splash-screen.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .splash-screen img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 100%;
+    min-height: 100%;
+    width: auto;
+    height: auto;
+    max-width: 160%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+  /* Team select is portrait — cover works fine */
+  #teamSelectScreen img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: static;
+    transform: none;
+    min-width: auto;
+    min-height: auto;
+    max-width: none;
+    max-height: none;
+  }
+
+  /* ── START / END SCREENS ── */
+  .screen-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.88);
+    backdrop-filter: blur(10px);
+    transition: opacity 0.5s;
+  }
+
+  .screen-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .title-logo {
+    width: 90px;
+    height: 90px;
+    margin-bottom: 12px;
+    animation: logo-bounce 2s ease-in-out infinite;
+    filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+  }
+
+  @keyframes logo-bounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-14px) scale(1.06); }
+  }
+
+  .title-text {
+    font-family: 'Russo One', sans-serif;
+    font-size: clamp(28px, 8vw, 50px);
+    color: #ffd700;
+    text-align: center;
+    text-shadow: 0 0 30px rgba(255,215,0,0.5), 0 4px 12px rgba(0,0,0,0.6);
+    line-height: 1.2;
+  }
+
+  .title-sub {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(14px, 3.5vw, 20px);
+    color: rgba(255,255,255,0.6);
+    margin-top: 8px;
+  }
+
+  .start-btn {
+    margin-top: 36px;
+    padding: 16px 52px;
+    font-family: 'Russo One', sans-serif;
+    font-size: clamp(16px, 4vw, 22px);
+    color: #fff;
+    background: linear-gradient(180deg, #ff6b00, #cc4400);
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    box-shadow: 0 6px 28px rgba(255,107,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.15s;
+  }
+
+  .start-btn:active { transform: scale(0.95); }
+
+  .end-trophy {
+    width: 100px;
+    height: 100px;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 4px 16px rgba(255,215,0,0.4));
+    animation: logo-bounce 2s ease-in-out infinite;
+  }
+
+  .final-score-big {
+    font-family: 'Russo One', sans-serif;
+    font-size: clamp(52px, 16vw, 90px);
+    color: #ffd700;
+    margin: 12px 0;
+    text-shadow: 0 0 40px rgba(255,215,0,0.5);
+  }
+
+  .final-message {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(16px, 4vw, 22px);
+    color: rgba(255,255,255,0.7);
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  /* ── PRELOAD (hidden) ── */
+  .preload { display: none; }
+</style>
+</head>
+<body>
+<!-- Preload all images -->
+<div class="preload">
+  <img src="background3.png" alt="">
+  <img src="https://raw.githubusercontent.com/Habiburrahman1215/penalty-kicks-html5/main/game/sprites/goal.png" alt="">
+  <img src="https://raw.githubusercontent.com/erodrig1010/pk-shootout/master/images/ball.png" alt="">
+  <img src="https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/618x618/1F3C6.png" alt="">
+  <img src="https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/26bd.png" alt="">
+  <img src="stand.png" alt="">
+  <img src="dive_low1.png" alt="">
+  <img src="dive_low2.png" alt="">
+  <img src="world-cup.png" alt="">
+  <img src="Splash3.png" alt="">
+  <img src="Select_team.png" alt="">
+  <img src="Empty.png" alt="">
+</div>
+
+<div id="game">
+  <!-- Background -->
+  <div class="bg"></div>
+  <div class="bg-overlay"></div>
+
+  <!-- Pitch group: anchors goal to grass line -->
+  <div class="pitch-group">
+    <!-- Goal area -->
+    <div class="goal-area" id="goalArea">
+      <div class="goal-img">
+        <img src="https://raw.githubusercontent.com/Habiburrahman1215/penalty-kicks-html5/main/game/sprites/goal.png" alt="Goal">
+      </div>
+      <div class="net-ripple" id="netRipple"></div>
+
+      <!-- Goalkeeper (two stacked layers for crossfade tweening) -->
+      <div class="goalkeeper idle" id="goalkeeper">
+        <div class="gk-layer visible" id="gkLayerA">
+          <img id="gkImgA" src="stand.png" alt="Goalkeeper">
+        </div>
+        <div class="gk-layer hidden" id="gkLayerB">
+          <img id="gkImgB" src="stand.png" alt="Goalkeeper">
+        </div>
+      </div>
+
+      <!-- Answers in 4 corners -->
+      <div class="answers-container" id="answersContainer"></div>
+    </div>
+  </div>
+
+  <!-- Ball -->
+  <div class="ball" id="ball">
+    <img src="https://raw.githubusercontent.com/erodrig1010/pk-shootout/master/images/ball.png" alt="Ball">
+  </div>
+
+  <!-- HUD -->
+  <div class="hud">
+    <div class="scoreboard">
+      <div class="team-info">
+        <img class="team-flag" src="https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/26bd.png" alt="">
+        <span class="team-label">YOU</span>
+      </div>
+      <span class="score-display" id="playerScore">0</span>
+      <span class="score-divider">:</span>
+      <span class="score-display" id="oppScore">0</span>
+      <div class="team-info">
+        <span class="team-label">GK</span>
+        <img class="team-flag" src="https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/72x72/1F9E4.png" alt="">
+      </div>
+    </div>
+    <div class="round-display" id="roundDisplay">
+      <span id="pointsText">0 PTS</span>
+      <div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
+    </div>
+  </div>
+
+  <!-- Penalty Tracker + Tournament Path -->
+  <div class="penalty-tracker" id="penaltyTracker"></div>
+  <div class="tournament-path" id="tournamentPath"></div>
+
+  <!-- Question -->
+  <div class="question-bar">
+    <div class="category-badge"><span id="categoryBadge">General</span></div>
+    <div class="question-text" id="questionText">Loading...</div>
+  </div>
+
+  <!-- Screen Flash -->
+  <div class="screen-flash" id="screenFlash"></div>
+
+  <!-- Confetti -->
+  <div class="confetti-container" id="confettiContainer"></div>
+
+  <!-- Result Overlay -->
+  <div class="result-overlay" id="resultOverlay">
+    <div class="result-text" id="resultText"></div>
+    <div class="correct-answer-reveal" id="correctReveal"></div>
+  </div>
+
+  <!-- Splash Screen -->
+  <div class="splash-screen" id="splashScreen">
+    <img src="Splash3.png" alt="World Cup Trivia Shootout">
+  </div>
+
+  <!-- Team Select Screen -->
+  <div class="splash-screen hidden" id="teamSelectScreen">
+    <img src="Select_team.png" alt="Select Team">
+  </div>
+
+  <!-- End Screen -->
+  <div class="screen-overlay hidden" id="endScreen">
+    <img class="end-trophy" id="endImg" src="https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/618x618/1F3C6.png" alt="Trophy">
+    <div class="title-text" id="endTitle">FULL TIME</div>
+    <div class="final-score-big" id="finalScore">0 - 0</div>
+    <div class="final-message" id="finalMessage"></div>
+    <button class="start-btn" id="restartBtn">PLAY AGAIN</button>
+  </div>
+</div>
+
+<script>
+// ── IMAGE URLS ──
+const IMG = {
+  gkStand: 'stand.png',
+  gkDive1: 'dive_low1.png',
+  gkDive2: 'dive_low2.png',
+  ball: 'https://raw.githubusercontent.com/erodrig1010/pk-shootout/master/images/ball.png',
+  trophy: 'https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/618x618/1F3C6.png',
+  sadFace: 'https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/618x618/1F614.png',
+  handshake: 'https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/618x618/1F91D.png',
+  checkmark: 'https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/618x618/2705.png',
+  crossmark: 'https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/618x618/274C.png',
+  football: 'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/26bd.png',
+};
+
+// ── GK CROSSFADE TWEEN SYSTEM ──
+// Two layers (A & B) alternate: the "front" layer shows the current sprite,
+// to transition we load the next sprite on the "back" layer, then crossfade.
+let gkFrontLayer = 'A'; // tracks which layer is currently visible
+
+function gkCrossfade(newSrc, tweenClass, frameClass) {
+  const frontId = gkFrontLayer;
+  const backId = frontId === 'A' ? 'B' : 'A';
+  const frontLayer = document.getElementById('gkLayer' + frontId);
+  const backLayer = document.getElementById('gkLayer' + backId);
+  const backImg = document.getElementById('gkImg' + backId);
+
+  // Load new sprite on back layer
+  backImg.src = newSrc;
+
+  // Apply tween transform class + frame size class
+  frontLayer.className = 'gk-layer hidden';
+  backLayer.className = `gk-layer visible ${tweenClass || ''} ${frameClass || ''}`;
+
+  // Swap which is "front"
+  gkFrontLayer = backId;
+}
+
+// Animated dive: stand → dive_low1 (crossfade) → dive_low2 (crossfade)
+// with smooth rotation/scale transforms tweened via CSS transitions
+function animateGkDive(direction) {
+  const isLeft = direction === 'left';
+
+  // Start: apply flip + fly animation to container
+  gk.className = `goalkeeper ${isLeft ? 'flip' : ''} dive-${direction}`;
+
+  // Frame 1 (0ms): crossfade from stand → dive_low1 with mid-tween rotation
+  gkCrossfade(IMG.gkDive1, 'tween-mid', 'frame-dive1');
+
+  // Frame 2 (~200ms): crossfade from dive_low1 → dive_low2 with full-stretch
+  setTimeout(() => {
+    gkCrossfade(IMG.gkDive2, 'tween-full', 'frame-dive2');
+  }, 200);
+}
+
+// Reset GK to standing (instant, no crossfade)
+function resetGk() {
+  gk.className = 'goalkeeper idle';
+  const layerA = document.getElementById('gkLayerA');
+  const layerB = document.getElementById('gkLayerB');
+  const imgA = document.getElementById('gkImgA');
+  const imgB = document.getElementById('gkImgB');
+
+  imgA.src = IMG.gkStand;
+  imgB.src = IMG.gkStand;
+  layerA.className = 'gk-layer visible tween-stand';
+  layerB.className = 'gk-layer hidden';
+  gkFrontLayer = 'A';
+}
+
+// ── QUESTIONS (4 answers each, difficulty: 1=easy, 2=medium, 3=hard) ──
+const QUESTIONS = [
+  // ═══════════════════════════════════════════
+  // EASY (difficulty 1) — Group Stage questions
+  // ═══════════════════════════════════════════
+  { q: "Which country has won the most World Cups?", a: ["Germany", "Brazil", "Italy", "Argentina"], correct: 1, cat: "HISTORY", d: 1 },
+  { q: "What year was the first World Cup held?", a: ["1928", "1930", "1934", "1926"], correct: 1, cat: "HISTORY", d: 1 },
+  { q: "How many players per team on the pitch?", a: ["9", "10", "11", "12"], correct: 2, cat: "RULES", d: 1 },
+  { q: "Who won the 2022 World Cup?", a: ["France", "Argentina", "Brazil", "Croatia"], correct: 1, cat: "HISTORY", d: 1 },
+  { q: "Which country hosted the 2014 World Cup?", a: ["Germany", "South Africa", "Brazil", "Russia"], correct: 2, cat: "HOSTS", d: 1 },
+  { q: "What colour card means a sending off?", a: ["Yellow", "Red", "Blue", "Green"], correct: 1, cat: "RULES", d: 1 },
+  { q: "Which country hosted the 2018 World Cup?", a: ["Brazil", "Qatar", "Russia", "France"], correct: 2, cat: "HOSTS", d: 1 },
+  { q: "How often is the World Cup held?", a: ["Every 2 years", "Every 4 years", "Every 3 years", "Annually"], correct: 1, cat: "RULES", d: 1 },
+  { q: "Who scored the 'Hand of God' goal?", a: ["Pelé", "Maradona", "Zidane", "Ronaldo"], correct: 1, cat: "LEGENDS", d: 1 },
+  { q: "Which country hosted the 2010 World Cup?", a: ["Brazil", "South Africa", "Germany", "Japan"], correct: 1, cat: "HOSTS", d: 1 },
+  { q: "What is the World Cup trophy called?", a: ["Golden Ball", "FIFA Trophy", "Jules Rimet", "World Star"], correct: 2, cat: "HISTORY", d: 1 },
+  { q: "How many teams play in the World Cup finals?", a: ["24", "32", "48", "16"], correct: 1, cat: "RULES", d: 1 },
+  { q: "Which continent has never hosted a World Cup?", a: ["Africa", "Asia", "Oceania", "South America"], correct: 2, cat: "HOSTS", d: 1 },
+  { q: "Pelé played for which country?", a: ["Argentina", "Brazil", "Portugal", "Spain"], correct: 1, cat: "LEGENDS", d: 1 },
+  { q: "What shape is a football pitch?", a: ["Circle", "Rectangle", "Square", "Oval"], correct: 1, cat: "RULES", d: 1 },
+  { q: "Which country won the 2018 World Cup?", a: ["Croatia", "Brazil", "France", "Belgium"], correct: 2, cat: "HISTORY", d: 1 },
+  { q: "What does FIFA stand for in English?", a: ["Football International Association", "International Football Federation", "International Federation of Association Football", "Federation of International Football"], correct: 2, cat: "HISTORY", d: 1 },
+  { q: "How long is a standard football match?", a: ["80 min", "90 min", "100 min", "120 min"], correct: 1, cat: "RULES", d: 1 },
+  { q: "Which country won the first ever World Cup?", a: ["Brazil", "Italy", "Uruguay", "Argentina"], correct: 2, cat: "HISTORY", d: 1 },
+  { q: "How many group stage games does each team play?", a: ["2", "3", "4", "5"], correct: 1, cat: "RULES", d: 1 },
+  { q: "Cristiano Ronaldo plays for which country?", a: ["Spain", "Brazil", "Portugal", "France"], correct: 2, cat: "LEGENDS", d: 1 },
+  { q: "Lionel Messi plays for which country?", a: ["Brazil", "Spain", "Argentina", "Chile"], correct: 2, cat: "LEGENDS", d: 1 },
+  { q: "Which colour are Brazil's home shirts?", a: ["Blue", "Green", "Yellow", "White"], correct: 2, cat: "TEAMS", d: 1 },
+  { q: "What position does a goalkeeper play?", a: ["Striker", "Midfielder", "Defender", "In goal"], correct: 3, cat: "RULES", d: 1 },
+  { q: "How many substitutes are allowed in a World Cup match?", a: ["3", "4", "5", "6"], correct: 2, cat: "RULES", d: 1 },
+  { q: "Germany's home shirt colour is?", a: ["Black", "Red", "White", "Yellow"], correct: 2, cat: "TEAMS", d: 1 },
+  { q: "Which 2 countries hosted the 2002 World Cup?", a: ["China & Japan", "Japan & S. Korea", "S. Korea & China", "Japan & Thailand"], correct: 1, cat: "HOSTS", d: 1 },
+  { q: "What is a hat-trick?", a: ["2 goals", "3 goals", "4 goals", "5 goals"], correct: 1, cat: "RULES", d: 1 },
+  { q: "Where was the 2022 World Cup held?", a: ["UAE", "Saudi Arabia", "Qatar", "Bahrain"], correct: 2, cat: "HOSTS", d: 1 },
+  { q: "Italy's national team is known as?", a: ["La Roja", "Die Mannschaft", "Azzurri", "Les Bleus"], correct: 2, cat: "TEAMS", d: 1 },
+  { q: "Which country has appeared in every World Cup?", a: ["Germany", "Argentina", "Italy", "Brazil"], correct: 3, cat: "HISTORY", d: 1 },
+  { q: "What happens if a knockout match is tied after 90 min?", a: ["Replay", "Coin toss", "Extra time", "Penalties immediately"], correct: 2, cat: "RULES", d: 1 },
+  { q: "Neymar plays for which country?", a: ["Argentina", "Portugal", "Spain", "Brazil"], correct: 3, cat: "LEGENDS", d: 1 },
+  { q: "France's national team is known as?", a: ["Les Bleus", "Azzurri", "La Roja", "Oranje"], correct: 0, cat: "TEAMS", d: 1 },
+  { q: "Which ball was used at the 2010 World Cup?", a: ["Brazuca", "Jabulani", "Telstar", "Tango"], correct: 1, cat: "HISTORY", d: 1 },
+  { q: "How many World Cups has Germany won?", a: ["3", "4", "5", "2"], correct: 1, cat: "HISTORY", d: 1 },
+  { q: "Who is the all-time top World Cup scorer?", a: ["Ronaldo", "Pelé", "Miroslav Klose", "Gerd Müller"], correct: 2, cat: "LEGENDS", d: 1 },
+  { q: "England's home shirt colour is?", a: ["Red", "Blue", "White", "Yellow"], correct: 2, cat: "TEAMS", d: 1 },
+  { q: "What does a yellow card mean?", a: ["Sending off", "Warning", "Free kick", "Penalty"], correct: 1, cat: "RULES", d: 1 },
+  { q: "How many World Cups has Argentina won?", a: ["1", "2", "3", "4"], correct: 2, cat: "HISTORY", d: 1 },
+
+  // ═══════════════════════════════════════════
+  // MEDIUM (difficulty 2) — R32 / R16 questions
+  // ═══════════════════════════════════════════
+  { q: "Who won the Golden Boot at the 2022 World Cup?", a: ["Messi", "Mbappé", "Giroud", "Álvarez"], correct: 1, cat: "AWARDS", d: 2 },
+  { q: "Which player was sent off in the 2006 WC final?", a: ["Materazzi", "Buffon", "Zidane", "Henry"], correct: 2, cat: "LEGENDS", d: 2 },
+  { q: "Who scored the winning goal in the 2010 WC final?", a: ["Xavi", "Iniesta", "Villa", "Torres"], correct: 1, cat: "LEGENDS", d: 2 },
+  { q: "Which country did NOT win a World Cup in the 1990s?", a: ["Brazil", "France", "Germany", "Spain"], correct: 3, cat: "HISTORY", d: 2 },
+  { q: "Who was top scorer at the 2014 World Cup?", a: ["Neymar", "Müller", "James Rodríguez", "Messi"], correct: 2, cat: "AWARDS", d: 2 },
+  { q: "The 'Miracle of Bern' refers to which WC final?", a: ["1950", "1954", "1958", "1962"], correct: 1, cat: "HISTORY", d: 2 },
+  { q: "Which team lost the 2014 World Cup final?", a: ["Brazil", "Netherlands", "Argentina", "Germany"], correct: 2, cat: "HISTORY", d: 2 },
+  { q: "Who was the youngest ever World Cup scorer?", a: ["Pelé", "Owen", "Mbappé", "Messi"], correct: 0, cat: "LEGENDS", d: 2 },
+  { q: "Germany beat Brazil 7-1 in which year?", a: ["2010", "2014", "2018", "2006"], correct: 1, cat: "HISTORY", d: 2 },
+  { q: "Who hosted the 1998 World Cup?", a: ["Spain", "Germany", "Italy", "France"], correct: 3, cat: "HOSTS", d: 2 },
+  { q: "Which African nation reached the 2010 QF?", a: ["Nigeria", "Ghana", "Cameroon", "Senegal"], correct: 1, cat: "HISTORY", d: 2 },
+  { q: "Who captained Brazil to win the 2002 World Cup?", a: ["Ronaldo", "Cafu", "Rivaldo", "Roberto Carlos"], correct: 1, cat: "LEGENDS", d: 2 },
+  { q: "The 'Golden Ball' is awarded to?", a: ["Top scorer", "Best player", "Best keeper", "Fair play team"], correct: 1, cat: "AWARDS", d: 2 },
+  { q: "How many World Cups has Italy won?", a: ["2", "3", "4", "5"], correct: 2, cat: "HISTORY", d: 2 },
+  { q: "Which country won the 1966 World Cup?", a: ["Brazil", "Germany", "England", "France"], correct: 2, cat: "HISTORY", d: 2 },
+  { q: "Who scored in the 1958, 1962 and 1970 WC finals?", a: ["Garrincha", "Pelé", "Jairzinho", "Vavá"], correct: 1, cat: "LEGENDS", d: 2 },
+  { q: "The 'Maracanazo' upset was in which year?", a: ["1950", "1954", "1958", "1962"], correct: 0, cat: "HISTORY", d: 2 },
+  { q: "Which team knocked England out of the 2018 WC?", a: ["Belgium", "France", "Croatia", "Sweden"], correct: 2, cat: "HISTORY", d: 2 },
+  { q: "Who won the Golden Glove at the 2022 WC?", a: ["Lloris", "Bounou", "E. Martínez", "Livakovic"], correct: 2, cat: "AWARDS", d: 2 },
+  { q: "How many goals did Fontaine score in 1958?", a: ["10", "11", "13", "15"], correct: 2, cat: "LEGENDS", d: 2 },
+  { q: "Which was the first Asian country to host a WC?", a: ["China", "Japan", "South Korea", "Japan & S. Korea"], correct: 3, cat: "HOSTS", d: 2 },
+  { q: "Diego Maradona captained Argentina to victory in?", a: ["1978", "1982", "1986", "1990"], correct: 2, cat: "LEGENDS", d: 2 },
+  { q: "Who scored the fastest World Cup hat-trick?", a: ["Higuaín", "Batistuta", "László Kiss", "Müller"], correct: 2, cat: "LEGENDS", d: 2 },
+  { q: "What was the score in the 2022 WC final after 120 min?", a: ["2-2", "3-3", "4-3", "2-1"], correct: 1, cat: "HISTORY", d: 2 },
+  { q: "Which country did Ronaldo (R9) play for?", a: ["Portugal", "Spain", "Brazil", "Argentina"], correct: 2, cat: "LEGENDS", d: 2 },
+  { q: "Who hosted the 1994 World Cup?", a: ["Mexico", "USA", "Canada", "Colombia"], correct: 1, cat: "HOSTS", d: 2 },
+  { q: "Which team won the 1998 World Cup?", a: ["Brazil", "Italy", "France", "Croatia"], correct: 2, cat: "HISTORY", d: 2 },
+  { q: "Who was top scorer at the 2018 World Cup?", a: ["Mbappé", "Kane", "Griezmann", "Lukaku"], correct: 1, cat: "AWARDS", d: 2 },
+  { q: "VAR was first used at which World Cup?", a: ["2014", "2018", "2022", "2010"], correct: 1, cat: "RULES", d: 2 },
+  { q: "What was special about the 1930 WC final ball?", a: ["Each team used their own ball for one half", "It was square", "It was made of rubber", "It was gold coloured"], correct: 0, cat: "HISTORY", d: 2 },
+  { q: "Which team won the 2006 World Cup?", a: ["France", "Germany", "Italy", "Brazil"], correct: 2, cat: "HISTORY", d: 2 },
+  { q: "Who is England's all-time top WC scorer?", a: ["Rooney", "Lineker", "Owen", "Kane"], correct: 3, cat: "LEGENDS", d: 2 },
+  { q: "The 'Group of Death' at 2014 was Group?", a: ["A", "D", "G", "H"], correct: 2, cat: "HISTORY", d: 2 },
+  { q: "Zinedine Zidane won the World Cup in?", a: ["1994", "1998", "2002", "2006"], correct: 1, cat: "LEGENDS", d: 2 },
+  { q: "Which country hosted the 1986 World Cup?", a: ["Colombia", "Argentina", "Mexico", "USA"], correct: 2, cat: "HOSTS", d: 2 },
+  { q: "Who won the Best Young Player at the 2022 WC?", a: ["Pedri", "Gavi", "Enzo Fernández", "Bellingham"], correct: 2, cat: "AWARDS", d: 2 },
+  { q: "Japan's best World Cup finish is?", a: ["Group stage", "Round of 16", "Quarter-final", "Semi-final"], correct: 1, cat: "HISTORY", d: 2 },
+  { q: "The Netherlands have reached how many WC finals?", a: ["1", "2", "3", "4"], correct: 2, cat: "HISTORY", d: 2 },
+  { q: "Who scored a hat-trick in the 2022 WC final?", a: ["Messi", "Mbappé", "Di María", "Álvarez"], correct: 1, cat: "LEGENDS", d: 2 },
+  { q: "Which team has lost the most WC finals?", a: ["Netherlands", "Germany", "Argentina", "Brazil"], correct: 1, cat: "HISTORY", d: 2 },
+
+  // ═══════════════════════════════════════════
+  // HARD (difficulty 3) — QF / SF / Final questions
+  // ═══════════════════════════════════════════
+  { q: "Who scored the 'Goal of the Century' in 1986?", a: ["Pelé", "Maradona", "Lineker", "Valdano"], correct: 1, cat: "LEGENDS", d: 3 },
+  { q: "Which player has the most WC appearances?", a: ["Lothar Matthäus", "Pelé", "Maldini", "Carbajal"], correct: 0, cat: "LEGENDS", d: 3 },
+  { q: "Who was the 1998 WC Golden Ball winner?", a: ["Zidane", "Ronaldo", "Suker", "Rivaldo"], correct: 1, cat: "AWARDS", d: 3 },
+  { q: "In 1950, which team beat Brazil in the final round?", a: ["Sweden", "Spain", "Uruguay", "Yugoslavia"], correct: 2, cat: "HISTORY", d: 3 },
+  { q: "Which keeper saved 2 penalties in the 2022 WC final?", a: ["Lloris", "E. Martínez", "Bounou", "Livakovic"], correct: 1, cat: "LEGENDS", d: 3 },
+  { q: "Who was the first player sent off in a WC final?", a: ["Zidane", "Beckham", "Gatjens", "Etcheverry"], correct: 0, cat: "HISTORY", d: 3 },
+  { q: "Which country won Olympic gold but never a WC?", a: ["Hungary", "Nigeria", "Cameroon", "All of these"], correct: 3, cat: "HISTORY", d: 3 },
+  { q: "What was the 'Battle of Santiago'?", a: ["1958 final", "1962 Chile v Italy", "1966 QF", "1970 semi"], correct: 1, cat: "HISTORY", d: 3 },
+  { q: "Who designed the current WC trophy?", a: ["Silvio Gazzaniga", "Abel Lafleur", "Jules Rimet", "FIFA committee"], correct: 0, cat: "HISTORY", d: 3 },
+  { q: "Geoff Hurst scored a hat-trick in which WC final?", a: ["1962", "1966", "1970", "1974"], correct: 1, cat: "LEGENDS", d: 3 },
+  { q: "Which World Cup had the 'Disgrace of Gijón'?", a: ["1978", "1982", "1986", "1990"], correct: 1, cat: "HISTORY", d: 3 },
+  { q: "Ronaldo (R9) scored how many WC goals total?", a: ["12", "15", "18", "10"], correct: 1, cat: "LEGENDS", d: 3 },
+  { q: "Who coached Germany to win the 2014 WC?", a: ["Klinsmann", "Löw", "Flick", "Völler"], correct: 1, cat: "COACHES", d: 3 },
+  { q: "Which WC saw the first penalty shootout in a final?", a: ["1990", "1994", "1998", "2006"], correct: 1, cat: "HISTORY", d: 3 },
+  { q: "Roberto Baggio's missed penalty was in which final?", a: ["1990", "1994", "1998", "2006"], correct: 1, cat: "LEGENDS", d: 3 },
+  { q: "Who coached Spain to win the 2010 World Cup?", a: ["Aragonés", "Del Bosque", "Enrique", "Lopetegui"], correct: 1, cat: "COACHES", d: 3 },
+  { q: "Miroslav Klose scored how many WC goals?", a: ["14", "16", "12", "18"], correct: 1, cat: "LEGENDS", d: 3 },
+  { q: "North Korea famously beat which team in 1966?", a: ["England", "Italy", "USSR", "Chile"], correct: 1, cat: "HISTORY", d: 3 },
+  { q: "Which WC was the first to use goal-line technology?", a: ["2010", "2014", "2018", "2022"], correct: 1, cat: "RULES", d: 3 },
+  { q: "Pickles the dog found the stolen WC trophy in?", a: ["1962", "1966", "1970", "1974"], correct: 1, cat: "HISTORY", d: 3 },
+  { q: "Who is the oldest player to score in a WC?", a: ["Milla", "Matthäus", "Drogba", "Klose"], correct: 0, cat: "LEGENDS", d: 3 },
+  { q: "Turkey's best WC finish was which place?", a: ["4th", "3rd", "QF", "R16"], correct: 1, cat: "HISTORY", d: 3 },
+  { q: "The 'Cruyff Turn' debuted at which World Cup?", a: ["1970", "1974", "1978", "1982"], correct: 1, cat: "LEGENDS", d: 3 },
+  { q: "Which country won back-to-back WCs in 1934 & 1938?", a: ["Brazil", "Uruguay", "Italy", "Germany"], correct: 2, cat: "HISTORY", d: 3 },
+  { q: "Largest victory margin in WC history?", a: ["Hungary 10-1", "Germany 8-0", "Hungary 9-0", "Australia 31-0"], correct: 0, cat: "HISTORY", d: 3 },
+  { q: "Who was the 2014 WC Golden Ball winner?", a: ["Müller", "James", "Messi", "Neymar"], correct: 2, cat: "AWARDS", d: 3 },
+  { q: "Which country has hosted the most World Cups?", a: ["France", "Brazil", "Mexico", "Italy"], correct: 2, cat: "HOSTS", d: 3 },
+  { q: "How many goals in the 1954 WC (most ever)?", a: ["126", "140", "171", "89"], correct: 2, cat: "HISTORY", d: 3 },
+  { q: "Cafu played in how many WC finals?", a: ["1", "2", "3", "4"], correct: 2, cat: "LEGENDS", d: 3 },
+  { q: "Who coached France to win the 2018 World Cup?", a: ["Zidane", "Blanc", "Deschamps", "Domenech"], correct: 2, cat: "COACHES", d: 3 },
+  { q: "Which WC was boycotted by several South American teams?", a: ["1930", "1934", "1938", "1950"], correct: 2, cat: "HISTORY", d: 3 },
+  { q: "Fastest goal in WC history was scored in how many seconds?", a: ["8", "11", "15", "5"], correct: 1, cat: "HISTORY", d: 3 },
+  { q: "Hakan Şükür scored that fastest WC goal against?", a: ["Brazil", "Turkey", "South Korea", "Germany"], correct: 2, cat: "LEGENDS", d: 3 },
+  { q: "Who won the first Golden Boot award in 1982?", a: ["Rossi", "Rummenigge", "Zico", "Boniek"], correct: 0, cat: "AWARDS", d: 3 },
+  { q: "Which team lost the 1974 and 1978 WC finals?", a: ["Germany", "Brazil", "Netherlands", "Italy"], correct: 2, cat: "HISTORY", d: 3 },
+  { q: "Who was the 2010 WC Golden Ball winner?", a: ["Xavi", "Iniesta", "Villa", "Forlán"], correct: 3, cat: "AWARDS", d: 3 },
+  { q: "Oleg Salenko scored 5 goals in one WC game for?", a: ["Germany", "Brazil", "Russia", "Cameroon"], correct: 2, cat: "LEGENDS", d: 3 },
+  { q: "2026 World Cup will be hosted by how many countries?", a: ["1", "2", "3", "4"], correct: 2, cat: "HOSTS", d: 3 },
+  { q: "Lev Yashin is the only goalkeeper to win?", a: ["World Cup", "Ballon d'Or", "Golden Glove", "Olympic Gold"], correct: 1, cat: "LEGENDS", d: 3 },
+  { q: "Which WC final had the most goals?", a: ["1958", "1966", "1970", "2022"], correct: 3, cat: "HISTORY", d: 3 },
+];
+
+// Corner mapping: 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right
+const CORNER_DIR = ['left', 'right', 'left', 'right']; // GK dive direction per corner
+const CORNER_RIPPLE = ['25% 25%', '75% 25%', '25% 75%', '75% 75%'];
+
+// Calculate ball target position based on answer button location
+function getBallTarget(btnIdx) {
+  const btn = answersContainer.querySelectorAll('.answer-btn')[btnIdx];
+  const btnRect = btn.getBoundingClientRect();
+  const gameRect = gameEl.getBoundingClientRect();
+  // Target: center of the answer button, relative to game container
+  const targetX = btnRect.left + btnRect.width / 2 - gameRect.left;
+  const targetY = btnRect.top + btnRect.height / 2 - gameRect.top;
+  return { x: targetX, y: targetY };
+}
+
+// Set ball CSS vars for dynamic animation
+function shootBallTo(targetX, targetY, isSave) {
+  const gameRect = gameEl.getBoundingClientRect();
+  const ballRect = ball.getBoundingClientRect();
+  const startX = ballRect.left + ballRect.width / 2 - gameRect.left;
+  const startY = ballRect.top + ballRect.height / 2 - gameRect.top;
+
+  ball.style.setProperty('--bx0', startX + 'px');
+  ball.style.setProperty('--by0', startY + 'px');
+
+  if (isSave) {
+    // For saves: ball stops at outer edge of keeper (shifted outward from center)
+    const dir = targetX < gameRect.width / 2 ? -1 : 1;
+    ball.style.setProperty('--bx1', (targetX + dir * 20) + 'px');
+    ball.style.setProperty('--by1', targetY + 'px');
+    ball.style.setProperty('--bs1', '16px');
+  } else {
+    ball.style.setProperty('--bx1', targetX + 'px');
+    ball.style.setProperty('--by1', targetY + 'px');
+    ball.style.setProperty('--bs1', '18px');
+  }
+
+  const isLeft = targetX < gameRect.width / 2;
+  ball.className = `ball visible shooting ${isLeft ? 'spin-left' : 'spin-right'}`;
+}
+
+function shootBallMiss() {
+  const gameRect = gameEl.getBoundingClientRect();
+  const ballRect = ball.getBoundingClientRect();
+  const startX = ballRect.left + ballRect.width / 2 - gameRect.left;
+  const startY = ballRect.top + ballRect.height / 2 - gameRect.top;
+
+  ball.style.setProperty('--bx0', startX + 'px');
+  ball.style.setProperty('--by0', startY + 'px');
+
+  // Random miss direction
+  const missDir = Math.random();
+  let midX, midY, endX, endY;
+  if (missDir < 0.33) {
+    // Miss left
+    midX = gameRect.width * 0.05; midY = gameRect.height * 0.35;
+    endX = -30; endY = gameRect.height * 0.3;
+  } else if (missDir < 0.66) {
+    // Miss right
+    midX = gameRect.width * 0.95; midY = gameRect.height * 0.35;
+    endX = gameRect.width + 30; endY = gameRect.height * 0.3;
+  } else {
+    // Miss over
+    midX = gameRect.width * 0.48; midY = gameRect.height * 0.08;
+    endX = gameRect.width * 0.47; endY = -20;
+  }
+
+  ball.style.setProperty('--bx1', midX + 'px');
+  ball.style.setProperty('--by1', midY + 'px');
+  ball.style.setProperty('--bx2', endX + 'px');
+  ball.style.setProperty('--by2', endY + 'px');
+
+  const isLeft = missDir < 0.33;
+  ball.className = `ball visible missing ${isLeft ? 'spin-left' : 'spin-right'}`;
+}
+
+// ── TOURNAMENT STAGES ──
+// Flag emojis as Twemoji URLs
+const FLAGS = {
+  'Japan':      'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f1ef-1f1f5.png',
+  'Mexico':     'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f1f2-1f1fd.png',
+  'South Korea':'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f1f0-1f1f7.png',
+  'USA':        'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f1fa-1f1f8.png',
+  'Germany':    'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f1e9-1f1ea.png',
+  'France':     'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f1eb-1f1f7.png',
+  'Argentina':  'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f1e6-1f1f7.png',
+  'Brazil':     'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f1e7-1f1f7.png',
+  'England':    'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f3f4-e0067-e0062-e0065-e006e-e0067-e007f.png',
+};
+
+const PLAYER_FLAGS = {
+  'England': 'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f3f4-e0067-e0062-e0065-e006e-e0067-e007f.png',
+  'Brazil':  'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f1e7-1f1f7.png',
+};
+
+const TOURNAMENT = [
+  { id: 'GRP1', label: 'GRP', short: 'G1', opponent: 'Japan' },
+  { id: 'GRP2', label: 'GRP', short: 'G2', opponent: 'Mexico' },
+  { id: 'GRP3', label: 'GRP', short: 'G3', opponent: 'South Korea' },
+  { id: 'R32',  label: 'R32', short: '32', opponent: 'USA' },
+  { id: 'R16',  label: 'R16', short: '16', opponent: 'Germany' },
+  { id: 'QF',   label: 'QTR', short: 'QF', opponent: 'France' },
+  { id: 'SF',   label: 'SEMI', short: 'SF', opponent: 'Argentina' },
+  { id: 'FINAL',label: 'FINAL', short: '🏆', isTrophy: true, opponent: null } // set dynamically
+];
+
+const SHORT_NAMES = {
+  'Japan': 'JPN', 'Mexico': 'MEX', 'South Korea': 'KOR', 'USA': 'USA',
+  'Germany': 'GER', 'France': 'FRA', 'Argentina': 'ARG', 'Brazil': 'BRA', 'England': 'ENG'
+};
+
+function getOpponent(stage) {
+  if (stage >= TOURNAMENT.length) return { name: 'GK', flag: '' };
+  const t = TOURNAMENT[stage];
+  // Final opponent is the other team (England vs Brazil / Brazil vs England)
+  if (t.id === 'FINAL') {
+    const opp = state.team === 'England' ? 'Brazil' : 'England';
+    return { name: SHORT_NAMES[opp] || opp.substring(0, 3).toUpperCase(), flag: FLAGS[opp] || '' };
+  }
+  return { name: SHORT_NAMES[t.opponent] || t.opponent.substring(0, 3).toUpperCase(), flag: FLAGS[t.opponent] || '' };
+}
+
+function updateScoreboard() {
+  const opp = getOpponent(state.tournamentStage);
+  const oppLabel = document.querySelectorAll('.team-label')[1];
+  const oppFlag = document.querySelectorAll('.team-flag')[1];
+  const playerFlag = document.querySelectorAll('.team-flag')[0];
+  if (oppLabel) oppLabel.textContent = opp.name;
+  if (oppFlag && opp.flag) oppFlag.src = opp.flag;
+  if (playerFlag && PLAYER_FLAGS[state.team]) playerFlag.src = PLAYER_FLAGS[state.team];
+}
+
+// ── GAME STATE ──
+let state = { round: 0, maxRounds: 5, playerScore: 0, oppScore: 0, results: [], questions: [], locked: false, phase: 'start', tournamentStage: 0, tournamentResults: [], totalPoints: 0, team: 'England' };
+let shotTimer = null;
+let shotSecondsLeft = 10;
+
+// ── DOM ──
+const $ = id => document.getElementById(id);
+const gameEl = $('game');
+const ball = $('ball');
+const gk = $('goalkeeper');
+const answersContainer = $('answersContainer');
+const questionText = $('questionText');
+const categoryBadge = $('categoryBadge');
+const resultOverlay = $('resultOverlay');
+const resultText = $('resultText');
+const correctReveal = $('correctReveal');
+const netRipple = $('netRipple');
+const screenFlash = $('screenFlash');
+const confettiContainer = $('confettiContainer');
+const penaltyTracker = $('penaltyTracker');
+const tournamentPathEl = $('tournamentPath');
+
+// ── SOUNDS ──
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+// ── MP3 AUDIO ──
+const songAudio = new Audio('song.mp3');
+songAudio.loop = true;
+songAudio.volume = 0.5;
+
+const crowdAudio = new Audio('crowd.mp3');
+crowdAudio.loop = true;
+crowdAudio.volume = 0;
+
+const goalAudio = new Audio('goal.mp3');
+goalAudio.volume = 0.7;
+
+const missAudio = new Audio('miss.mp3');
+missAudio.volume = 0.7;
+
+let currentBgAudio = null; // track which background audio is playing
+
+function fadeAudio(audio, fromVol, toVol, duration, callback) {
+  const steps = 20;
+  const stepTime = duration / steps;
+  const volStep = (toVol - fromVol) / steps;
+  let step = 0;
+  audio.volume = fromVol;
+  const interval = setInterval(() => {
+    step++;
+    audio.volume = Math.min(1, Math.max(0, fromVol + volStep * step));
+    if (step >= steps) {
+      clearInterval(interval);
+      audio.volume = toVol;
+      if (callback) callback();
+    }
+  }, stepTime);
+  return interval;
+}
+
+function switchToCrowd() {
+  if (currentBgAudio === crowdAudio) return;
+  if (currentBgAudio === songAudio) {
+    fadeAudio(songAudio, songAudio.volume, 0, 1000, () => { songAudio.pause(); });
+  }
+  crowdAudio.currentTime = 0;
+  crowdAudio.play().catch(() => {});
+  fadeAudio(crowdAudio, 0, 0.4, 1500);
+  currentBgAudio = crowdAudio;
+}
+
+function switchToSong() {
+  if (currentBgAudio === songAudio) return;
+  if (currentBgAudio === crowdAudio) {
+    fadeAudio(crowdAudio, crowdAudio.volume, 0, 1000, () => { crowdAudio.pause(); });
+  }
+  songAudio.currentTime = 0;
+  songAudio.play().catch(() => {});
+  fadeAudio(songAudio, 0, 0.5, 1500);
+  currentBgAudio = songAudio;
+}
+
+function startSong() {
+  songAudio.currentTime = 0;
+  songAudio.volume = 0.5;
+  songAudio.play().catch(() => {});
+  currentBgAudio = songAudio;
+}
+
+function playGoalSound() {
+  goalAudio.currentTime = 0;
+  goalAudio.play().catch(() => {});
+}
+
+function playMissSfx() {
+  missAudio.currentTime = 0;
+  missAudio.play().catch(() => {});
+}
+
+function playKick() {
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'triangle'; o.frequency.setValueAtTime(150, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.12);
+  g.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+  o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.15);
+}
+
+function playCheer() {
+  playGoalSound();
+}
+
+function playMissSound() {
+  playMissSfx();
+}
+
+function playWhistle() {
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(800, audioCtx.currentTime);
+  o.frequency.setValueAtTime(900, audioCtx.currentTime + 0.15);
+  o.frequency.setValueAtTime(800, audioCtx.currentTime + 0.3);
+  g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+  g.gain.setValueAtTime(0.1, audioCtx.currentTime + 0.25);
+  g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+  o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.4);
+}
+
+// ── PENALTY TRACKER ──
+function updateTracker() {
+  penaltyTracker.innerHTML = '';
+  for (let i = 0; i < state.maxRounds; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'pen-dot';
+    if (i < state.round) {
+      dot.classList.add(state.results[i] ? 'scored' : 'missed');
+      const img = document.createElement('img');
+      img.src = state.results[i] ? IMG.checkmark : IMG.crossmark;
+      dot.appendChild(img);
+    } else if (i === state.round && state.phase === 'playing') {
+      dot.classList.add('current');
+      const img = document.createElement('img');
+      img.src = IMG.football;
+      dot.appendChild(img);
+    }
+    penaltyTracker.appendChild(dot);
+  }
+}
+
+// ── TOURNAMENT PATH ──
+function updateTournamentPath() {
+  tournamentPathEl.innerHTML = '';
+  const track = document.createElement('div');
+  track.className = 'path-track';
+
+  TOURNAMENT.forEach((stage, i) => {
+    if (i > 0) {
+      const conn = document.createElement('div');
+      conn.className = 'path-connector';
+      if (i <= state.tournamentStage && state.tournamentResults[i - 1]) conn.classList.add('completed');
+      track.appendChild(conn);
+    }
+
+    const step = document.createElement('div');
+    step.className = 'path-step';
+    if (i < state.tournamentStage) {
+      step.classList.add(state.tournamentResults[i] ? 'completed' : 'failed');
+    } else if (i === state.tournamentStage && state.phase === 'playing') {
+      step.classList.add('current');
+    }
+
+    const node = document.createElement('div');
+    node.className = 'path-node';
+    if (stage.isTrophy) {
+      node.classList.add('trophy-node');
+      const img = document.createElement('img');
+      img.src = 'world-cup.png';
+      img.alt = 'World Cup';
+      node.appendChild(img);
+    } else {
+      node.textContent = stage.short;
+    }
+
+    const label = document.createElement('div');
+    label.className = 'path-label';
+    label.textContent = stage.label;
+
+    step.appendChild(node);
+    step.appendChild(label);
+    track.appendChild(step);
+  });
+
+  tournamentPathEl.appendChild(track);
+}
+
+// ── SHOT TIMER ──
+function startShotTimer() {
+  clearInterval(shotTimer);
+  shotSecondsLeft = 10;
+  updateTimerDisplay();
+  shotTimer = setInterval(() => {
+    shotSecondsLeft--;
+    updateTimerDisplay();
+    if (shotSecondsLeft <= 0) {
+      clearInterval(shotTimer);
+      if (!state.locked) timeoutShot();
+    }
+  }, 1000);
+}
+
+function stopShotTimer() {
+  clearInterval(shotTimer);
+}
+
+function getPointsForShot() {
+  return Math.max(10, shotSecondsLeft * 10);
+}
+
+function updateTimerDisplay() {
+  const fill = $('timerFill');
+  fill.style.width = (shotSecondsLeft / 10 * 100) + '%';
+  fill.className = 'timer-fill' + (shotSecondsLeft <= 3 ? ' danger' : shotSecondsLeft <= 5 ? ' warning' : '');
+}
+
+function updatePointsDisplay() {
+  $('pointsText').textContent = `${state.totalPoints} PTS`;
+}
+
+function timeoutShot() {
+  if (state.locked) return;
+  state.locked = true;
+  // Auto-miss on timeout
+  const rndDir = Math.random() > 0.5 ? 'left' : 'right';
+  setTimeout(() => {
+    shootBallMiss();
+    animateGkDive(rndDir);
+  }, 250);
+  setTimeout(() => triggerMiss(), 750);
+}
+
+// ── QUESTIONS ──
+let usedQuestionIndices = new Set();
+
+function getDifficultyForStage(stage) {
+  // Stages 0-2 (Group) = easy, 3-4 (R32/R16) = medium, 5-7 (QF/SF/Final) = hard
+  if (stage <= 2) return 1;
+  if (stage <= 4) return 2;
+  return 3;
+}
+
+function pickQuestions() {
+  const diff = getDifficultyForStage(state.tournamentStage);
+  // Get questions of this difficulty that haven't been used
+  let pool = QUESTIONS
+    .map((q, i) => ({ ...q, _idx: i }))
+    .filter(q => q.d === diff && !usedQuestionIndices.has(q._idx));
+
+  // If not enough, also pull from adjacent difficulty
+  if (pool.length < state.maxRounds) {
+    const adjacent = diff === 1 ? 2 : diff === 3 ? 2 : (Math.random() > 0.5 ? 1 : 3);
+    const extra = QUESTIONS
+      .map((q, i) => ({ ...q, _idx: i }))
+      .filter(q => q.d === adjacent && !usedQuestionIndices.has(q._idx));
+    pool = pool.concat(extra);
+  }
+
+  // If still not enough, reset used questions for this difficulty
+  if (pool.length < state.maxRounds) {
+    usedQuestionIndices = new Set();
+    pool = QUESTIONS.map((q, i) => ({ ...q, _idx: i })).filter(q => q.d === diff);
+  }
+
+  // Shuffle and pick
+  pool.sort(() => Math.random() - 0.5);
+  state.questions = pool.slice(0, state.maxRounds);
+  // Mark as used
+  state.questions.forEach(q => usedQuestionIndices.add(q._idx));
+}
+
+function showQuestion() {
+  const q = state.questions[state.round];
+  categoryBadge.textContent = q.cat;
+  questionText.textContent = q.q;
+  updatePointsDisplay();
+
+  answersContainer.innerHTML = '';
+  q.a.forEach((ans, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn';
+    btn.textContent = ans;
+    btn.addEventListener('click', () => selectAnswer(idx));
+    btn.style.opacity = '0'; btn.style.transform = 'scale(0.85)';
+    setTimeout(() => { btn.style.transition = 'opacity 0.2s, transform 0.2s'; btn.style.opacity = '1'; btn.style.transform = 'scale(1)'; }, 100 + idx * 70);
+    answersContainer.appendChild(btn);
+  });
+
+  // Reset
+  ball.className = 'ball visible';
+  ball.style.removeProperty('--bx0');
+  ball.style.removeProperty('--by0');
+  ball.style.removeProperty('--bx1');
+  ball.style.removeProperty('--by1');
+  ball.style.removeProperty('--bx2');
+  ball.style.removeProperty('--by2');
+  ball.style.removeProperty('--bs1');
+  resetGk();
+  netRipple.className = 'net-ripple';
+  screenFlash.className = 'screen-flash';
+  resultOverlay.className = 'result-overlay';
+  confettiContainer.innerHTML = '';
+  state.locked = false;
+  startShotTimer();
+}
+
+// ── ANSWER ──
+function selectAnswer(idx) {
+  if (state.locked) return;
+  state.locked = true;
+  stopShotTimer();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  playKick();
+
+  const q = state.questions[state.round];
+  const isCorrect = idx === q.correct;
+  const buttons = answersContainer.querySelectorAll('.answer-btn');
+
+  buttons[idx].classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) buttons[q.correct].classList.add('correct');
+  buttons.forEach(b => b.style.pointerEvents = 'none');
+
+  setTimeout(playKick, 180);
+
+  if (isCorrect) {
+    // Ball goes to the selected answer square, GK dives the WRONG way
+    const wrongDir = CORNER_DIR[idx] === 'left' ? 'right' : 'left';
+    const target = getBallTarget(idx);
+
+    setTimeout(() => {
+      shootBallTo(target.x, target.y, false);
+      animateGkDive(wrongDir);
+    }, 250);
+
+    setTimeout(() => triggerGoal(idx), 750);
+  } else {
+    const isSave = Math.random() > 0.35;
+    if (isSave) {
+      // GK saves — ball goes toward answer but keeper intercepts at the outer edge
+      const target = getBallTarget(idx);
+
+      setTimeout(() => {
+        shootBallTo(target.x, target.y, true);
+        animateGkDive(CORNER_DIR[idx]);
+      }, 250);
+      setTimeout(() => triggerSave(), 750);
+    } else {
+      // Miss wide — ball flies off target entirely
+      const rndDir = Math.random() > 0.5 ? 'left' : 'right';
+      setTimeout(() => {
+        shootBallMiss();
+        animateGkDive(rndDir);
+      }, 250);
+      setTimeout(() => triggerMiss(), 750);
+    }
+  }
+}
+
+function triggerGoal(corner) {
+  const pos = CORNER_RIPPLE[corner].split(' ');
+  netRipple.style.setProperty('--rx', pos[0]);
+  netRipple.style.setProperty('--ry', pos[1]);
+  netRipple.className = 'net-ripple active';
+  screenFlash.className = 'screen-flash goal-flash';
+  playCheer();
+  spawnConfetti();
+
+  const pts = getPointsForShot();
+  state.totalPoints += pts;
+
+  resultText.className = 'result-text goal';
+  resultText.textContent = 'GOAL!';
+  correctReveal.textContent = `+${pts} pts`;
+  resultOverlay.className = 'result-overlay active';
+
+  state.playerScore++;
+  state.results.push(true);
+  const el = $('playerScore'); el.textContent = state.playerScore;
+  el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 400);
+
+  updatePointsDisplay();
+  updateTracker();
+  setTimeout(nextRound, 2200);
+}
+
+function triggerSave() {
+  screenFlash.className = 'screen-flash miss-flash';
+  gameEl.classList.add('shake'); setTimeout(() => gameEl.classList.remove('shake'), 500);
+  playMissSound();
+
+  resultText.className = 'result-text saved';
+  resultText.textContent = 'SAVED!';
+  const q = state.questions[state.round];
+  correctReveal.textContent = `Answer: ${q.a[q.correct]}`;
+  resultOverlay.className = 'result-overlay active';
+
+  if (Math.random() > 0.5) {
+    state.oppScore++;
+    const el = $('oppScore'); el.textContent = state.oppScore;
+    el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 400);
+  }
+
+  state.results.push(false);
+  updateTracker();
+  setTimeout(nextRound, 2400);
+}
+
+function triggerMiss() {
+  screenFlash.className = 'screen-flash miss-flash';
+  gameEl.classList.add('shake'); setTimeout(() => gameEl.classList.remove('shake'), 500);
+  playMissSound();
+
+  resultText.className = 'result-text miss';
+  resultText.textContent = 'MISS!';
+  const q = state.questions[state.round];
+  correctReveal.textContent = `Answer: ${q.a[q.correct]}`;
+  resultOverlay.className = 'result-overlay active';
+
+  if (Math.random() > 0.5) {
+    state.oppScore++;
+    const el = $('oppScore'); el.textContent = state.oppScore;
+    el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 400);
+  }
+
+  state.results.push(false);
+  updateTracker();
+  setTimeout(nextRound, 2400);
+}
+
+function spawnConfetti() {
+  const colors = ['#ffd700','#2ecc40','#ff4136','#0074d9','#ff851b','#f012be','#fff','#01ff70'];
+  for (let i = 0; i < 55; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = (8 + Math.random() * 84) + '%';
+    c.style.background = colors[Math.floor(Math.random() * colors.length)];
+    c.style.animationDelay = Math.random() * 0.5 + 's';
+    c.style.animationDuration = (1.2 + Math.random() * 1) + 's';
+    const s = 5 + Math.random() * 8;
+    c.style.width = s + 'px';
+    c.style.height = (s * (0.4 + Math.random() * 0.8)) + 'px';
+    c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    confettiContainer.appendChild(c);
+  }
+}
+
+function nextRound() {
+  state.round++;
+  if (state.round >= state.maxRounds) { endGame(); return; }
+  showQuestion();
+  updateTracker();
+}
+
+function endGame() {
+  state.phase = 'ended';
+  playWhistle();
+
+  const won = state.playerScore > state.oppScore;
+  const draw = state.playerScore === state.oppScore;
+  state.tournamentResults.push(won || draw); // draw counts as progression in groups
+
+  stopShotTimer();
+  $('finalScore').textContent = `${state.playerScore} - ${state.oppScore}`;
+
+  const stageName = TOURNAMENT[state.tournamentStage].label;
+  const isLastStage = state.tournamentStage >= TOURNAMENT.length - 1;
+
+  // Reset end screen background
+  const endEl = $('endScreen');
+  endEl.style.background = 'rgba(0,0,0,0.88)';
+  endEl.style.backgroundSize = '';
+  endEl.style.backgroundPosition = '';
+
+  if (won && isLastStage) {
+    // Won the final!
+    $('endImg').src = 'world-cup.png';
+    $('endImg').style.display = '';
+    $('endTitle').textContent = 'WORLD CHAMPION!';
+    $('finalMessage').textContent = 'You lifted the World Cup trophy!';
+    $('restartBtn').textContent = 'PLAY AGAIN';
+    setTimeout(() => { for (let i = 0; i < 4; i++) setTimeout(spawnConfetti, i * 250); }, 400);
+  } else if (won || draw) {
+    // Won or drew — advance
+    const nextStage = TOURNAMENT[state.tournamentStage + 1];
+    $('endImg').src = IMG.trophy;
+    $('endImg').style.display = '';
+    $('endTitle').textContent = draw ? 'DRAW!' : 'YOU WIN!';
+    $('finalMessage').textContent = `You advance to the ${nextStage.label}!`;
+    $('restartBtn').textContent = 'NEXT MATCH';
+    if (won) setTimeout(() => { for (let i = 0; i < 2; i++) setTimeout(spawnConfetti, i * 200); }, 400);
+  } else {
+    // Lost — eliminated: use Empty.png as full background
+    $('endImg').style.display = 'none';
+    endEl.style.background = 'url("Empty.png") center center / cover no-repeat';
+    $('endTitle').textContent = 'ELIMINATED';
+    $('finalMessage').textContent = `Knocked out in the ${stageName}...`;
+    $('restartBtn').textContent = 'TRY AGAIN';
+    switchToSong();
+  }
+
+  $('endScreen').classList.remove('hidden');
+  updateTracker();
+  updateTournamentPath();
+}
+
+function advanceOrReset() {
+  const lastResult = state.tournamentResults[state.tournamentStage];
+  if (lastResult && state.tournamentStage < TOURNAMENT.length - 1) {
+    // Advance to next stage
+    state.tournamentStage++;
+    startStage();
+  } else {
+    // Lost or won final — full reset
+    resetTournament();
+  }
+}
+
+function startStage() {
+  state.round = 0;
+  state.playerScore = 0;
+  state.oppScore = 0;
+  state.results = [];
+  state.questions = [];
+  state.locked = false;
+  state.phase = 'playing';
+  $('playerScore').textContent = '0';
+  $('oppScore').textContent = '0';
+  $('endScreen').classList.add('hidden');
+  confettiContainer.innerHTML = '';
+  switchToCrowd();
+  updateScoreboard();
+  pickQuestions(); showQuestion(); updateTracker(); updateTournamentPath();
+}
+
+function resetTournament() {
+  const team = state.team || 'England';
+  state = { round: 0, maxRounds: 5, playerScore: 0, oppScore: 0, results: [], questions: [], locked: false, phase: 'playing', tournamentStage: 0, tournamentResults: [], totalPoints: 0, team };
+  usedQuestionIndices = new Set();
+  $('playerScore').textContent = '0';
+  $('oppScore').textContent = '0';
+  $('endScreen').classList.add('hidden');
+  confettiContainer.innerHTML = '';
+  switchToCrowd();
+  updateScoreboard();
+  pickQuestions(); showQuestion(); updateTracker(); updateTournamentPath();
+}
+
+// ── INIT ──
+updateTracker();
+updateTournamentPath();
+
+// Splash — first tap starts music, second tap goes to team select
+let splashMusicStarted = false;
+$('splashScreen').addEventListener('click', () => {
+  if (!splashMusicStarted) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    startSong();
+    splashMusicStarted = true;
+    return;
+  }
+  $('splashScreen').classList.add('hidden');
+  $('teamSelectScreen').classList.remove('hidden');
+});
+
+// Team Select — top half = England, bottom half = Brazil
+$('teamSelectScreen').addEventListener('click', (e) => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const clickY = e.clientY - rect.top;
+  const isTopHalf = clickY < rect.height / 2;
+
+  state.team = isTopHalf ? 'England' : 'Brazil';
+  document.querySelector('.team-label').textContent = state.team.substring(0, 3).toUpperCase();
+
+  $('teamSelectScreen').classList.add('hidden');
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  switchToCrowd();
+  playWhistle();
+  state.phase = 'playing';
+  updateScoreboard();
+  pickQuestions(); showQuestion(); updateTracker(); updateTournamentPath();
+});
+
+$('restartBtn').addEventListener('click', advanceOrReset);
+
+</script>
+</body>
+</html>
